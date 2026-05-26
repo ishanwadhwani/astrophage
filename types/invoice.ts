@@ -67,6 +67,7 @@ export interface Invoice {
   client: {
     id: string;
     name: string;
+    phone: string;
     gstin?: string | null;
     pan?: string | null;
     address?: string | null;

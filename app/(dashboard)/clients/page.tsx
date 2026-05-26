@@ -62,7 +62,6 @@ export default function ClientsPage() {
     void fetchData();
   }, [businessId]);
 
-  
   const onSubmit = async (values: ClientForm) => {
     try {
       const payload: CreateClientPayload = {
@@ -92,6 +91,8 @@ export default function ClientsPage() {
       setClients((prev) => prev.filter((c) => c.id !== id));
     } catch {}
   };
+
+  console.log(clients);
 
   return (
     <div>
@@ -217,13 +218,20 @@ export default function ClientsPage() {
               />
             </div>
             <div>
-              <label className={labelBase}>Phone</label>
+              <label className={labelBase}>
+                Phone <span className="text-destructive">*</span>
+              </label>
               <input
                 type="tel"
                 placeholder="+91 98765 43210"
-                {...register("phone")}
+                {...register("phone", { required: "Phone Number is required" })}
                 className={inputNormal}
               />
+              {errors.phone && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.phone.message}
+                </p>
+              )}
             </div>
           </div>
 
