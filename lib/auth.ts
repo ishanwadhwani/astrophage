@@ -24,6 +24,8 @@ export const loginUser = async (
 export const saveAuth = (data: AuthResponse): void => {
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data.user));
+  // cookie
+  document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
 };
 
 export const getUser = () => {

@@ -1,6 +1,11 @@
 import { Business, BankDetails } from "./business";
 
-export type InvoiceStatus = "DRAFT" | "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
+export type InvoiceStatus =
+  | "DRAFT"
+  | "PENDING"
+  | "PAID"
+  | "OVERDUE"
+  | "CANCELLED";
 export type TaxType = "IGST" | "CGST_SGST";
 export type TemplateType = "BASE" | "CUSTOM";
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CARD";
@@ -65,6 +70,7 @@ export interface Invoice {
     gstin?: string | null;
     pan?: string | null;
     address?: string | null;
+    pincode?: number | null;
     city?: string | null;
     state?: string | null;
   };
