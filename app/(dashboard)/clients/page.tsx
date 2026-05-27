@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 
 import { Client, CreateClientPayload } from "@/types/client";
-import { fetchClients, createClient, deleteClient } from "@/lib/clients";
-import { getUser } from "@/lib/auth";
+import {
+  fetchClients,
+  createClient,
+  updateClient,
+  deleteClient,
+} from "@/lib/clients";
 import Modal from "@/components/shared/Modal";
 import { STATES } from "@/constants/invoice-options";
 import { ClientForm } from "@/types/client";
@@ -20,8 +24,10 @@ const labelBase =
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const { businessId } = useBusiness();
 
@@ -62,28 +68,67 @@ export default function ClientsPage() {
     void fetchData();
   }, [businessId]);
 
-  const onSubmit = async (values: ClientForm) => {
-    try {
-      const payload: CreateClientPayload = {
-        ...values,
-        businessId,
-        email: values.email || undefined,
-        phone: values.phone || undefined,
-        gstin: values.gstin || undefined,
-        pan: values.pan || undefined,
-        address: values.address || undefined,
-        city: values.city || undefined,
-        state: values.state || undefined,
-        pincode: values.pincode || undefined,
-        notes: values.notes || undefined,
-      };
-      const newClient = await createClient(payload);
-      setClients((prev) => [newClient, ...prev]);
-      reset();
-      setIsModalOpen(false);
-    } catch {}
+  // edit client details
+  const handleEditClick = (client: Client) => {
+    setEditingClient(client);
+    reset({
+      name: client.name ?? "",
+      email: client.email ?? "",
+      phone: client.phone ?? "",
+      gstin: client.gstin ?? "",
+      pan: client.pan ?? "",
+      address: client.address ?? "",
+      city: client.city ?? "",
+      state: client.state ?? "",
+      pincode: client.pincode ?? "",
+      notes: client.notes ?? "",
+    });
+    setIsModalOpen(true);
   };
 
+  // onSubmit to handle both modes:
+  const onSubmit = async (values: ClientForm) => {
+    setServerError("");
+    try {
+      if (editingClient) {
+        const updated = await updateClient(editingClient.id, values);
+        setClients((prev) =>
+          prev.map((c) => (c.id === editingClient.id ? updated : c)),
+        );
+      } else {
+        const payload: CreateClientPayload = {
+          ...values,
+          businessId,
+          email: values.email || undefined,
+          phone: values.phone || undefined,
+          gstin: values.gstin || undefined,
+          pan: values.pan || undefined,
+          address: values.address || undefined,
+          city: values.city || undefined,
+          state: values.state || undefined,
+          pincode: values.pincode || undefined,
+          notes: values.notes || undefined,
+        };
+        const newClient = await createClient(payload);
+        setClients((prev) => [newClient, ...prev]);
+      }
+      reset();
+      setEditingClient(null);
+      setIsModalOpen(false);
+    } catch (err: unknown) {
+      let message = "Failed to create invoice";
+      if (typeof err === "object" && err !== null) {
+        const e = err as {
+          response?: { data?: { message?: string } };
+          message?: string;
+        };
+        message = e.response?.data?.message || e.message || message;
+      }
+      setServerError(message);
+    }
+  };
+
+  // delete client
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this client?")) return;
     try {
@@ -92,7 +137,12 @@ export default function ClientsPage() {
     } catch {}
   };
 
-  console.log(clients);
+  const handleClose = () => {
+    setIsModalOpen(false);
+    setEditingClient(null);
+    setServerError("");
+    reset();
+  };
 
   return (
     <div>
@@ -161,12 +211,20 @@ export default function ClientsPage() {
                     {client.gstin || "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(client.id)}
-                      className="text-destructive hover:text-destructive/70 text-xs transition"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => handleEditClick(client)}
+                        className="text-xs font-medium text-primary hover:text-primary/80 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(client.id)}
+                        className="text-xs text-destructive hover:text-destructive/70 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -177,11 +235,8 @@ export default function ClientsPage() {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          reset();
-        }}
-        title="Add Client"
+        onClose={handleClose}
+        title={editingClient ? "Edit Client" : "Add Client"}
       >
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -342,6 +397,9 @@ export default function ClientsPage() {
             >
               Cancel
             </button>
+            {serverError && (
+              <p className="text-sm text-destructive">{serverError}</p>
+            )}
             <button
               type="submit"
               disabled={isSubmitting}

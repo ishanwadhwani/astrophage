@@ -354,7 +354,13 @@ export default function DashboardPage() {
   const net = stats.totalReceivables - stats.totalPayables;
   const hour = new Date().getHours();
   const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    hour >= 5 && hour < 12
+      ? "Good morning"
+      : hour >= 12 && hour < 17
+        ? "Good afternoon"
+        : hour >= 17 && hour < 22
+          ? "Good evening"
+          : "Welcome back";
 
   return (
     <div className="space-y-6">
