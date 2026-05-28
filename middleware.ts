@@ -9,6 +9,7 @@ const AUTH_PATHS = [
   "/cashflow",
   "/settings",
   "/vendors",
+  "/onboarding",
 ];
 
 export function middleware(request: NextRequest) {

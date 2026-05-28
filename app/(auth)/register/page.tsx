@@ -28,7 +28,7 @@ export default function RegisterPage() {
     try {
       const data = await registerUser(form);
       saveAuth(data);
-      router.push("/dashboard");
+      router.push("/onboarding");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
       setError(errorMessage);

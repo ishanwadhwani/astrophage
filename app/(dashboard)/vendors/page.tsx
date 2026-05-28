@@ -20,6 +20,7 @@ import AddBillModal from "./_components/AddBillModal";
 import RecordBillPaymentModal from "./_components/RecordBillPaymentModal";
 import RecurringBillTable from "./_components/RecurringBillTable";
 import AddRecurringBillModal from "./_components/AddRecurringBillModal";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 type TabType = "Vendors" | "Bills" | "Recurring";
 
@@ -109,13 +110,7 @@ export default function VendorsPage() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingState page="vendors" />;
 
   return (
     <div className="space-y-6">

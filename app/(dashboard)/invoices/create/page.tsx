@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
+
 import { Client } from "@/types/client";
 import { LineItemInput, CreateInvoicePayload } from "@/types/invoice";
 import { fetchClients } from "@/lib/clients";
 import { createInvoice } from "@/lib/invoices";
+import { fetchNextInvoiceNumber } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
-import Link from "next/link";
 // import { getUser } from "@/lib/auth";
 import { GST_RATES, STATES } from "@/constants/invoice-options";
 
@@ -68,6 +70,7 @@ export default function CreateInvoicePage() {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateInvoicePayload>({
     defaultValues: {
@@ -86,8 +89,8 @@ export default function CreateInvoicePage() {
     name: "lineItems",
   });
 
-const watchedLineItems = useWatch({ control, name: "lineItems" }) || [];
-//   const watchedLineItems = watch("lineItems");
+  const watchedLineItems = useWatch({ control, name: "lineItems" }) || [];
+  //   const watchedLineItems = watch("lineItems");
   const watchedClientId = watch("clientId");
   const watchedNumber = watch("number");
   const watchedDueDate = watch("dueDate");
@@ -104,6 +107,19 @@ const watchedLineItems = useWatch({ control, name: "lineItems" }) || [];
 
     void fetchData();
   }, [businessId]);
+
+  useEffect(() => {
+    if (!businessId) return;
+
+    const fetchNumber = async () => {
+      try {
+        const number = await fetchNextInvoiceNumber(businessId);
+        setValue("number", number); // ← react-hook-form setValue
+      } catch {}
+    };
+
+    void fetchNumber();
+  }, [businessId, setValue]);
 
   const computedItems = watchedLineItems.map((item) => {
     const amount = (item.quantity || 0) * (item.rate || 0);

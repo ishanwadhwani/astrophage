@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, Controller } from "react-hook-form";
+
 import { Invoice, Payment, PaymentMode } from "@/types/invoice";
 import { fetchInvoice, updateInvoiceStatus } from "@/lib/invoices";
 import { recordPayment } from "@/lib/invoices";
 import { PAYMENT_MODES } from "@/constants/invoice-options";
-import dynamic from "next/dynamic";
 import InvoiceDownloadButton from "@/components/shared/InvoiceDownloadButton";
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { getUser } from "@/lib/auth";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 type RecordPaymentForm = {
   amount: number;
@@ -174,13 +175,7 @@ export default function InvoiceDetailPage() {
     } catch {}
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingState page="invoiceDetail" />;
 
   if (!invoice) return null;
 

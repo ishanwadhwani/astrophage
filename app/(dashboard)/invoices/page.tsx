@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
 import { Invoice } from "@/types/invoice";
 import { fetchInvoices, deleteInvoice } from "@/lib/invoices";
 import { getUser } from "@/lib/auth";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 const statusStyles: Record<string, string> = {
   DRAFT: "bg-status-draft text-status-draft-foreground",
@@ -67,7 +69,7 @@ export default function InvoicePage() {
         </Link>
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <LoadingState page="invoices" />
       ) : invoices.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground text-sm">
           No invoices yet. Create your first one.

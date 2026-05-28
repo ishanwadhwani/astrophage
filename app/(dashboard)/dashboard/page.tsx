@@ -336,9 +336,7 @@ export default function DashboardPage() {
     void fetchData();
   }, [businessId]);
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  if (loading) return <LoadingState page="dashboard" />;
 
   if (!data) return null;
 
@@ -350,6 +348,9 @@ export default function DashboardPage() {
     dueSoonBills,
     recentInvoices,
   } = data;
+
+  const isSetupIncomplete =
+    !user?.business?.name || data.stats.totalClients === 0;
 
   const net = stats.totalReceivables - stats.totalPayables;
   const hour = new Date().getHours();
@@ -373,6 +374,43 @@ export default function DashboardPage() {
           Here is what needs your attention today
         </p>
       </div>
+
+      {/* reminder message to fill up the details */}
+      {isSetupIncomplete && (
+        <div className="flex items-center gap-4 bg-primary/8 border border-primary/20 rounded-2xl px-5 py-4">
+          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              Complete your setup
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Add your GSTIN, bank details, and first client to start generating
+              valid invoices
+            </p>
+          </div>
+          <Link
+            href="/settings"
+            className="flex-shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition"
+          >
+            Complete setup →
+          </Link>
+        </div>
+      )}
 
       {/* Stats — 6 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

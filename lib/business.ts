@@ -8,7 +8,7 @@ export const fetchBusiness = async (id: string): Promise<Business> => {
 
 export const updateBusiness = async (
   id: string,
-  data: Partial<Business>
+  data: Partial<Business>,
 ): Promise<Business> => {
   const res = await axiosInstance.put<Business>(`/api/businesses/${id}`, data);
   return res.data;
@@ -16,11 +16,31 @@ export const updateBusiness = async (
 
 export const saveBankDetails = async (
   businessId: string,
-  data: Omit<BankDetails, "id">
+  data: Omit<BankDetails, "id">,
 ): Promise<BankDetails> => {
   const res = await axiosInstance.put<BankDetails>(
     `/api/businesses/${businessId}/bank-details`,
-    data
+    data,
+  );
+  return res.data;
+};
+
+export const fetchNextInvoiceNumber = async (
+  businessId: string,
+): Promise<string> => {
+  const res = await axiosInstance.get<{ number: string }>(
+    `/api/businesses/${businessId}/next-number`,
+  );
+  return res.data.number;
+};
+
+export const updateInvoicePrefix = async (
+  businessId: string,
+  invoicePrefix: string,
+): Promise<Business> => {
+  const res = await axiosInstance.put<Business>(
+    `/api/businesses/${businessId}/prefix`,
+    { invoicePrefix },
   );
   return res.data;
 };

@@ -8,6 +8,7 @@ import { getUser } from "@/lib/auth";
 import CashflowStats from "./_components/CashflowStats";
 import CashflowChart from "./_components/CashflowChart";
 import CashflowTimeline from "./_components/CashflowTimeline";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 const RANGES = [
   { label: "2 Weeks", days: 14 },
@@ -41,13 +42,7 @@ export default function CashflowPage() {
     void fetchData();
   }, [businessId, selectedDays]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingState page="cashflow" />;
 
   if (!data) return null;
 

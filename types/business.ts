@@ -18,6 +18,8 @@ export interface Business {
   pincode: string | null;
   email: string | null;
   phone: string | null;
+  invoicePrefix: string | null; 
+  invoiceCount?: number;
   bankDetails: BankDetails | null;
 }
 

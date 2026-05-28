@@ -10,12 +10,18 @@ import {
   BusinessForm,
   BankForm,
 } from "@/types/business";
-import { fetchBusiness, updateBusiness, saveBankDetails } from "@/lib/business";
-import { getUser } from "@/lib/auth";
+import {
+  fetchBusiness,
+  updateBusiness,
+  saveBankDetails,
+  updateInvoicePrefix,
+} from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
 import { STATES } from "@/constants/invoice-options";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 const ACCOUNT_TYPES = ["Current", "Savings", "OD", "CC"];
+type PrefixForm = { invoicePrefix: string };
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -135,6 +141,15 @@ export default function SettingsPage() {
     },
   });
 
+  const {
+    register: regPrefix,
+    handleSubmit: handlePrefix,
+    reset: resetPrefix,
+    formState: { isSubmitting: prefixSubmitting },
+  } = useForm<PrefixForm>({
+    defaultValues: { invoicePrefix: "INV" },
+  });
+
   useEffect(() => {
     if (!businessId) return;
 
@@ -155,6 +170,10 @@ export default function SettingsPage() {
           pincode: data.pincode ?? "",
         });
 
+        resetPrefix({
+          invoicePrefix: data.invoicePrefix ?? "INV",
+        });
+
         if (data.bankDetails) {
           resetBank({
             accountName: data.bankDetails.accountName,
@@ -172,7 +191,7 @@ export default function SettingsPage() {
     };
 
     void fetchData();
-  }, [businessId, resetBusiness, resetBank]);
+  }, [businessId, resetBusiness, resetBank, resetPrefix]);
 
   const onSaveBusiness = async (values: BusinessForm) => {
     try {
@@ -212,13 +231,16 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const onSavePrefix = async (values: PrefixForm) => {
+    try {
+      await updateInvoicePrefix(businessId, values.invoicePrefix);
+      showToast("Invoice prefix saved", "success");
+    } catch {
+      showToast("Failed to save prefix", "error");
+    }
+  };
+
+  if (loading) return <LoadingState page="settings" fullScreen />;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -442,6 +464,40 @@ export default function SettingsPage() {
           </div>
 
           <SaveButton isSubmitting={bankSubmitting} />
+        </form>
+      </SectionCard>
+
+      <SectionCard
+        title="Invoice Numbering"
+        description="Invoices will be numbered as PREFIX-0001, PREFIX-0002 and so on."
+      >
+        <form
+          onSubmit={handlePrefix(onSavePrefix)}
+          noValidate
+          className="space-y-4"
+        >
+          <div className="max-w-xs">
+            <label className={labelBase}>
+              Invoice Prefix <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="INV"
+              maxLength={10}
+              {...regPrefix("invoicePrefix", {
+                required: "Prefix is required",
+                maxLength: { value: 10, message: "Max 10 characters" },
+              })}
+              className={inputNormal}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Your next invoice will be numbered{" "}
+              <span className="font-mono font-semibold text-foreground">
+                PREFIX-0001
+              </span>
+            </p>
+          </div>
+          <SaveButton isSubmitting={prefixSubmitting} />
         </form>
       </SectionCard>
 

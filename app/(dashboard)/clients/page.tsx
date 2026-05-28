@@ -14,6 +14,7 @@ import Modal from "@/components/shared/Modal";
 import { STATES } from "@/constants/invoice-options";
 import { ClientForm } from "@/types/client";
 import { useBusiness } from "@/hooks/useBusiness";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -141,7 +142,18 @@ export default function ClientsPage() {
     setIsModalOpen(false);
     setEditingClient(null);
     setServerError("");
-    reset();
+    reset({
+      name: "",
+      email: "",
+      phone: "",
+      gstin: "",
+      pan: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+      notes: "",
+    });
   };
 
   return (
@@ -154,7 +166,22 @@ export default function ClientsPage() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingClient(null);
+            reset({
+              name: "",
+              email: "",
+              phone: "",
+              gstin: "",
+              pan: "",
+              address: "",
+              city: "",
+              state: "",
+              pincode: "",
+              notes: "",
+            });
+            setIsModalOpen(true);
+          }}
           className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
         >
           Add client
@@ -163,7 +190,7 @@ export default function ClientsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center min-h-40">
-          <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <LoadingState page="clients" />;
         </div>
       ) : clients.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground text-sm">

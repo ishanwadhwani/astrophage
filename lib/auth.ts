@@ -37,5 +37,7 @@ export const getUser = () => {
 export const logout = (): void => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+
+  document.cookie = "auth-token=; path=/; max-age=0; SameSite=Strict";
   window.location.href = "/login";
 };
