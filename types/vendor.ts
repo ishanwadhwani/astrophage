@@ -1,5 +1,6 @@
 export type BillStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CARD";
+export type BillFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
 
 export interface Vendor {
   id: string;
@@ -76,7 +77,7 @@ export interface VendorForm {
   state: string;
   pincode: string;
   notes: string;
-};
+}
 
 export interface BillForm {
   vendorId: string;
@@ -85,7 +86,7 @@ export interface BillForm {
   amount: number;
   dueDate: string;
   notes: string;
-};
+}
 
 export interface PaymentForm {
   amount: number;
@@ -93,4 +94,27 @@ export interface PaymentForm {
   referenceNumber: string;
   paymentDate: string;
   notes: string;
-};
+}
+
+export interface RecurringBill {
+  id: string;
+  businessId: string;
+  vendorId: string;
+  description: string;
+  amount: number;
+  frequency: BillFrequency;
+  nextDueDate: string;
+  isActive: boolean;
+  notes: string | null;
+  vendor: { id: string; name: string };
+}
+
+export interface CreateRecurringBillPayload {
+  businessId: string;
+  vendorId: string;
+  description: string;
+  amount: number;
+  frequency: BillFrequency;
+  nextDueDate: string;
+  notes?: string;
+}
