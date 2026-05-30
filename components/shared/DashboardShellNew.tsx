@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import SidebarNew from "./SidebarNew";
 
 export default function DashboardShell({
@@ -66,7 +67,11 @@ export default function DashboardShell({
                 <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
               </svg>
             </div>
-            <span className="text-sm font-bold text-foreground">CashFlow</span>
+            <Link href="/dashboard">
+              <span className="text-sm font-bold text-foreground">
+                CashFlow
+              </span>
+            </Link>
           </div>
         </header>
 

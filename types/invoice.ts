@@ -68,6 +68,7 @@ export interface Invoice {
     id: string;
     name: string;
     phone: string;
+    email: string | null;
     gstin?: string | null;
     pan?: string | null;
     address?: string | null;
@@ -85,6 +86,7 @@ export interface CreateInvoicePayload {
   placeOfSupply: string;
   notes?: string;
   isGstInvoice: boolean;
+  saveAsDraft?: boolean;
   templateType?: TemplateType;
   lineItems: LineItemInput[];
 }
@@ -96,4 +98,17 @@ export interface RecordPaymentPayload {
   referenceNumber?: string;
   paymentDate?: string;
   notes?: string;
+}
+
+export interface InvoiceClient {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  gstin: string | null;
+  pan: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
 }

@@ -10,6 +10,7 @@ const AUTH_PATHS = [
   "/settings",
   "/vendors",
   "/onboarding",
+  "/reports",
 ];
 
 export function middleware(request: NextRequest) {

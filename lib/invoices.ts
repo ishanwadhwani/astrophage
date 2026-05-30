@@ -49,3 +49,16 @@ export const recordPayment = async (
   const res = await axiosInstance.post("/api/payments", payload);
   return res.data;
 };
+
+export const emailInvoice = async (
+  id: string,
+  recipientEmail: string,
+): Promise<void> => {
+  await axiosInstance.post(`/api/invoices/${id}/email`, {
+    recipientEmail,
+  });
+};
+
+export const markInvoiceGSTFiled = async (id: string): Promise<void> => {
+  await axiosInstance.put(`/api/invoices/${id}/mark-filed`);
+};

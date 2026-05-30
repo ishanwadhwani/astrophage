@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
@@ -9,7 +9,7 @@ import { Client } from "@/types/client";
 import { LineItemInput, CreateInvoicePayload } from "@/types/invoice";
 import { fetchClients } from "@/lib/clients";
 import { createInvoice } from "@/lib/invoices";
-import { fetchNextInvoiceNumber } from "@/lib/business";
+import { fetchBusiness, fetchNextInvoiceNumber } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
 // import { getUser } from "@/lib/auth";
 import { GST_RATES, STATES } from "@/constants/invoice-options";
@@ -60,16 +60,17 @@ function FieldError({ message }: { message?: string }) {
 
 export default function CreateInvoicePage() {
   const router = useRouter();
+  const isDraftRef = useRef(false);
   //   const user = getUser();
   const { businessId } = useBusiness();
   const [clients, setClients] = useState<Client[]>([]);
+  const [businessStateWarning, setBusinessStateWarning] = useState(false);
   const [serverError, setServerError] = useState("");
 
   const {
     register,
     control,
     handleSubmit,
-    watch,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateInvoicePayload>({
@@ -90,23 +91,32 @@ export default function CreateInvoicePage() {
   });
 
   const watchedLineItems = useWatch({ control, name: "lineItems" }) || [];
-  //   const watchedLineItems = watch("lineItems");
-  const watchedClientId = watch("clientId");
-  const watchedNumber = watch("number");
-  const watchedDueDate = watch("dueDate");
+  const watchedClientId = useWatch({ control, name: "clientId" }) || [];
+  const watchedNumber = useWatch({ control, name: "number" });
+  const watchedDueDate = useWatch({ control, name: "dueDate" });
+  const watchedPlaceOfSupply = useWatch({ control, name: "placeOfSupply" });
 
   useEffect(() => {
     if (!businessId) return;
 
     const fetchData = async () => {
       try {
-        const data = await fetchClients(businessId);
-        setClients(data);
+        const [clients, business, number] = await Promise.all([
+          fetchClients(businessId),
+          fetchBusiness(businessId),
+          fetchNextInvoiceNumber(businessId),
+        ]);
+        setClients(clients);
+        setValue("number", number);
+
+        if (!business.state) {
+          setBusinessStateWarning(true);
+        }
       } catch {}
     };
 
     void fetchData();
-  }, [businessId]);
+  }, [businessId, setValue]);
 
   useEffect(() => {
     if (!businessId) return;
@@ -114,7 +124,7 @@ export default function CreateInvoicePage() {
     const fetchNumber = async () => {
       try {
         const number = await fetchNextInvoiceNumber(businessId);
-        setValue("number", number); // ← react-hook-form setValue
+        setValue("number", number);
       } catch {}
     };
 
@@ -148,6 +158,7 @@ export default function CreateInvoicePage() {
       const payload: CreateInvoicePayload = {
         ...values,
         businessId,
+        saveAsDraft: isDraftRef.current,
         lineItems: values.lineItems.map((item) => ({
           ...item,
           hsnSac: item.hsnSac || undefined,
@@ -170,7 +181,6 @@ export default function CreateInvoicePage() {
 
   return (
     <div className="min-h-full">
-      {/* ── Top bar ─────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Link
@@ -187,18 +197,32 @@ export default function CreateInvoicePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex gap-3 pb-8">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            className="px-5 py-2 border border-border text-sm font-medium rounded-lg text-foreground hover:bg-muted transition"
           >
-            Discard
+            Cancel
           </button>
           <button
-            form="invoice-form"
-            type="submit"
+            type="button"
             disabled={isSubmitting}
+            onClick={() => {
+              isDraftRef.current = true;
+              handleSubmit(onSubmit)();
+            }}
+            className="px-5 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-50 transition"
+          >
+            Save as Draft
+          </button>
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => {
+              isDraftRef.current = false;
+              handleSubmit(onSubmit)();
+            }}
             className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm shadow-primary/20"
           >
             {isSubmitting ? (
@@ -213,16 +237,27 @@ export default function CreateInvoicePage() {
         </div>
       </div>
 
-      {/* ── Two-column layout ───────────────────────── */}
+      {businessStateWarning && (
+        <div className="flex items-start gap-3 bg-status-pending/10 border border-status-pending-foreground/20 rounded-xl px-4 py-3">
+          <span className="text-status-pending-foreground text-sm">⚠</span>
+          <p className="text-sm text-status-pending-foreground">
+            Your business state is not set. IGST will be applied to all
+            invoices.{" "}
+            <Link href="/settings" className="font-semibold underline">
+              Fix in Settings →
+            </Link>
+          </p>
+        </div>
+      )}
+
       <form
-        id="invoice-form"
-        onSubmit={handleSubmit(onSubmit)}
+        // id="invoice-form"
+        // onSubmit={handleSubmit(onSubmit)}
         noValidate
         className="flex flex-col lg:flex-row gap-6 items-start"
       >
-        {/* ── Left column ─────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-4">
-          {/* Section 1 — Invoice Details */}
+          {/* Invoice Details */}
           <SectionCard step="1" title="Invoice Details">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -303,6 +338,16 @@ export default function CreateInvoicePage() {
                     </select>
                   )}
                 />
+                <div className="col-span-2 flex items-center mt-2 gap-2 p-3 bg-muted/60 rounded-xl">
+                  <span className="text-xs text-muted-foreground">
+                    Tax type will be:
+                  </span>
+                  <span className="text-xs font-bold text-foreground">
+                    {watchedPlaceOfSupply
+                      ? "Determined by business vs client state"
+                      : "Select place of supply first"}
+                  </span>
+                </div>
                 <FieldError message={errors.placeOfSupply?.message} />
               </div>
             </div>
@@ -335,7 +380,7 @@ export default function CreateInvoicePage() {
             </div>
           </SectionCard>
 
-          {/* Section 2 — Line Items */}
+          {/* Line Items */}
           <SectionCard step="2" title="Line Items">
             {/* Desktop table header */}
             <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 px-1">
@@ -545,7 +590,7 @@ export default function CreateInvoicePage() {
             </div>
           </SectionCard>
 
-          {/* Section 3 — Notes */}
+          {/* Notes */}
           <SectionCard step="3" title="Notes">
             <textarea
               rows={3}
@@ -583,7 +628,6 @@ export default function CreateInvoicePage() {
           </div>
         </div>
 
-        {/* ── Right column — Summary ───────────────── */}
         <div className="w-full lg:w-80 lg:sticky lg:top-6 flex-shrink-0">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border bg-muted/40">
@@ -598,7 +642,7 @@ export default function CreateInvoicePage() {
                 <div className="flex justify-between items-start">
                   <span className="text-xs text-muted-foreground">Invoice</span>
                   <span className="text-xs font-semibold text-foreground">
-                    {watchedNumber || "—"}
+                    {watchedNumber}
                   </span>
                 </div>
                 <div className="flex justify-between items-start">
