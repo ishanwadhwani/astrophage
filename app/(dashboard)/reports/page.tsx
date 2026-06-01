@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+
+import DataTable, { TableColumn } from "@/components/shared/DataTable";
 import { GSTReport, GSTInvoiceRow } from "@/types/gst";
 import { fetchGSTReport } from "@/lib/reports";
 import { getUser } from "@/lib/auth";
@@ -178,6 +180,167 @@ export default function ReportsPage() {
 
   const inputClass =
     "px-3 py-2 bg-card border border-input rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all";
+
+  const gstColumns = useMemo<TableColumn<GSTInvoiceRow>[]>(
+    () => [
+      {
+        key: "number",
+        header: "Invoice",
+        render: (row) => (
+          <Link
+            href={`/invoices/${row.id}`}
+            className="font-semibold text-foreground hover:text-primary transition"
+          >
+            #{row.number}
+          </Link>
+        ),
+      },
+      {
+        key: "invoiceDate",
+        header: "Date",
+        render: (row) => (
+          <span className="text-muted-foreground whitespace-nowrap">
+            {fmtDate(row.invoiceDate)}
+          </span>
+        ),
+      },
+      {
+        key: "clientName",
+        header: "Client",
+        render: (row) => (
+          <span className="text-muted-foreground">{row.clientName}</span>
+        ),
+      },
+      {
+        key: "clientGstin",
+        header: "GSTIN",
+        render: (row) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.clientGstin}
+          </span>
+        ),
+      },
+      {
+        key: "taxType",
+        header: "Tax Type",
+        render: (row) => (
+          <span
+            className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+              row.taxType === "IGST"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-purple-100 text-purple-700"
+            }`}
+          >
+            {row.taxType === "IGST" ? "IGST" : "CGST+SGST"}
+          </span>
+        ),
+      },
+      {
+        key: "taxableValue",
+        header: "Taxable",
+        align: "right",
+        render: (row) => (
+          <span className="text-muted-foreground tabular-nums">
+            {fmt(row.taxableValue)}
+          </span>
+        ),
+      },
+      {
+        key: "igst",
+        header: "IGST",
+        align: "right",
+        width: "108px",
+        render: (row) => (
+          <span
+            className={`tabular-nums ${row.igst > 0 ? "text-muted-foreground" : "text-border"}`}
+          >
+            {row.igst > 0 ? fmt(row.igst) : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "cgst",
+        header: "CGST",
+        align: "right",
+        width: "108px",
+        render: (row) => (
+          <span
+            className={`tabular-nums ${row.cgst > 0 ? "text-muted-foreground" : "text-border"}`}
+          >
+            {row.cgst > 0 ? fmt(row.cgst) : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "sgst",
+        header: "SGST",
+        align: "right",
+        width: "108px",
+        render: (row) => (
+          <span
+            className={`tabular-nums ${row.sgst > 0 ? "text-muted-foreground" : "text-border"}`}
+          >
+            {row.sgst > 0 ? fmt(row.sgst) : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "total",
+        header: "Total",
+        align: "right",
+        render: (row) => (
+          <span className="font-semibold text-foreground tabular-nums whitespace-nowrap">
+            {fmt(row.total)}
+          </span>
+        ),
+      },
+      {
+        key: "filing",
+        header: "Filing",
+        align: "center",
+        width: "120px",
+        render: (row) =>
+          row.filingStatus === "FILED" ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-status-paid text-status-paid-foreground">
+                Filed
+              </span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {fmtDate(row.gstFilingDate!)}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={async () => {
+                try {
+                  await markInvoiceGSTFiled(row.id);
+                  setReport((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          invoices: prev.invoices.map((i) =>
+                            i.id === row.id
+                              ? {
+                                  ...i,
+                                  filingStatus: "FILED" as const,
+                                  gstFilingDate: new Date().toISOString(),
+                                }
+                              : i,
+                          ),
+                        }
+                      : prev,
+                  );
+                } catch {}
+              }}
+              className="px-2 py-1 rounded-full text-xs font-semibold bg-status-pending text-status-pending-foreground hover:opacity-80 transition whitespace-nowrap cursor-pointer"
+            >
+              Mark Filed
+            </button>
+          ),
+      },
+    ],
+    [setReport],
+  );
 
   return (
     <div className="space-y-6">
@@ -357,124 +520,13 @@ export default function ReportsPage() {
                 No invoices match this filter.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/60 border-b border-border">
-                    <tr>
-                      {[
-                        "Invoice",
-                        "Date",
-                        "Client",
-                        "GSTIN",
-                        "Tax Type",
-                        "Taxable",
-                        "IGST",
-                        "CGST",
-                        "SGST",
-                        "Total",
-                        "Filing",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filtered.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-muted/30 transition">
-                        <td className="px-3 py-3 font-medium text-foreground whitespace-nowrap">
-                          <Link
-                            href={`/invoices/${inv.id}`}
-                            className="hover:text-primary transition"
-                          >
-                            #{inv.number}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                          {fmtDate(inv.invoiceDate)}
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">
-                          {inv.clientName}
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground font-mono text-xs">
-                          {inv.clientGstin}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              inv.taxType === "IGST"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-purple-100 text-purple-700"
-                            }`}
-                          >
-                            {inv.taxType === "IGST" ? "IGST" : "CGST+SGST"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-right text-muted-foreground whitespace-nowrap">
-                          {fmt(inv.taxableValue)}
-                        </td>
-                        <td className="px-3 py-3 text-right text-muted-foreground whitespace-nowrap">
-                          {inv.igst > 0 ? fmt(inv.igst) : "—"}
-                        </td>
-                        <td className="px-3 py-3 text-right text-muted-foreground whitespace-nowrap">
-                          {inv.cgst > 0 ? fmt(inv.cgst) : "—"}
-                        </td>
-                        <td className="px-3 py-3 text-right text-muted-foreground whitespace-nowrap">
-                          {inv.sgst > 0 ? fmt(inv.sgst) : "—"}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold text-foreground whitespace-nowrap">
-                          {fmt(inv.total)}
-                        </td>
-                        <td className="px-3 py-3">
-                          {inv.filingStatus === "FILED" ? (
-                            <div>
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-status-paid text-status-paid-foreground">
-                                Filed
-                              </span>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {fmtDate(inv.gstFilingDate!)}
-                              </p>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await markInvoiceGSTFiled(inv.id);
-                                  // Update local state
-                                  setReport((prev) =>
-                                    prev
-                                      ? {
-                                          ...prev,
-                                          invoices: prev.invoices.map((i) =>
-                                            i.id === inv.id
-                                              ? {
-                                                  ...i,
-                                                  filingStatus:
-                                                    "FILED" as const,
-                                                  gstFilingDate:
-                                                    new Date().toISOString(),
-                                                }
-                                              : i,
-                                          ),
-                                        }
-                                      : prev,
-                                  );
-                                } catch {}
-                              }}
-                              className="px-2 py-1 rounded-full text-xs font-semibold bg-status-pending text-status-pending-foreground hover:opacity-80 transition"
-                            >
-                              Mark Filed
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <DataTable
+                  columns={gstColumns}
+                  data={filtered}
+                  keyExtractor={(row) => row.id}
+                  emptyText="No invoices match this filter."
+                />
               </div>
             )}
           </div>

@@ -21,6 +21,7 @@ export interface Business {
   invoicePrefix: string | null; 
   invoiceCount?: number;
   bankDetails: BankDetails | null;
+  upiId: string | null;
 }
 
 export interface UpdateBusinessPayload {
@@ -33,6 +34,7 @@ export interface UpdateBusinessPayload {
   pincode?: string;
   email?: string;
   phone?: string;
+  upiId?: string;
 }
 
 export interface BankDetailsPayload {
@@ -53,6 +55,7 @@ export interface BusinessForm {
   city: string;
   state: string;
   pincode: string;
+  upiId?: string;
 }
 
 export interface BankForm {

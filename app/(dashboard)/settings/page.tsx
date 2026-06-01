@@ -168,6 +168,7 @@ export default function SettingsPage() {
           city: data.city ?? "",
           state: data.state ?? "",
           pincode: data.pincode ?? "",
+          upiId: data.upiId ?? "",
         });
 
         resetPrefix({
@@ -205,6 +206,7 @@ export default function SettingsPage() {
         city: values.city || undefined,
         state: values.state || undefined,
         pincode: values.pincode || undefined,
+        upiId: values.upiId || undefined,
       };
       const updated = await updateBusiness(businessId, payload);
       setBusiness((prev) => (prev ? { ...prev, ...updated } : prev));
@@ -252,7 +254,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* ── Business Profile ─────────────────────── */}
+      {/* Business Profile */}
       <SectionCard
         title="Business Profile"
         description="Your business identity shown on invoices — name, GSTIN, PAN, and address."
@@ -319,6 +321,19 @@ export default function SettingsPage() {
             </div>
 
             <div className="sm:col-span-2">
+              <label className={labelBase}>UPI ID</label>
+              <input
+                type="text"
+                placeholder="yourname@upi or 9876543210@paytm"
+                {...regBusiness("upiId")}
+                className={inputNormal}
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Added to invoices as a QR code — clients scan to pay instantly
+              </p>
+            </div>
+
+            <div className="sm:col-span-2">
               <label className={labelBase}>Street Address</label>
               <input
                 type="text"
@@ -378,7 +393,7 @@ export default function SettingsPage() {
         </form>
       </SectionCard>
 
-      {/* ── Bank Details ──────────────────────────── */}
+      {/* Bank Details */}
       <SectionCard
         title="Bank Details"
         description="Shown on invoices so clients know where to transfer payments."

@@ -67,6 +67,7 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [serverError, setServerError] = useState("");
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | undefined>();
 
   const totalPaid = invoice?.payments.reduce((s, p) => s + p.amount, 0) ?? 0;
   const outstanding = (invoice?.total ?? 0) - totalPaid;
@@ -223,9 +224,6 @@ export default function InvoiceDetailPage() {
             </button>
           )}
 
-          {/* Download Button */}
-          <InvoiceDownloadButton invoice={invoice} />
-
           {/* Email Button */}
           <button
             onClick={() => setSendModalOpen(true)}
@@ -244,7 +242,7 @@ export default function InvoiceDetailPage() {
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22,2 15,22 11,13 2,9" />
             </svg>
-            Send
+            Send Email
           </button>
 
           {/* Reminder Button */}
@@ -285,6 +283,12 @@ export default function InvoiceDetailPage() {
                 Send Reminder
               </button>
             )}
+
+          {/* Download Button */}
+          <InvoiceDownloadButton
+            invoice={invoice}
+            onQRReady={(url) => setQrDataUrl(url)}
+          />
         </div>
       </div>
 
@@ -586,6 +590,48 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* UPI QR Preview */}
+          {qrDataUrl && invoice.business.upiId && (
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-border bg-muted/40">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Pay via UPI
+                </h3>
+              </div>
+              <div className="p-5 flex flex-col items-center gap-3">
+                <img
+                  src={qrDataUrl}
+                  alt="UPI QR Code"
+                  className="w-36 h-36 rounded-lg border border-border"
+                />
+                <div className="text-center">
+                  <p className="text-xs font-mono font-semibold text-foreground">
+                    {invoice.business.upiId}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Scan with any UPI app
+                  </p>
+                  <p className="text-sm font-bold text-primary mt-1">
+                    ₹
+                    {invoice.total.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap justify-center">
+                  {["GPay", "PhonePe", "Paytm", "BHIM"].map((app) => (
+                    <span
+                      key={app}
+                      className="px-2 py-1 bg-muted rounded text-xs text-muted-foreground font-medium"
+                    >
+                      {app}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Record Payment */}
           {canRecordPayment && (

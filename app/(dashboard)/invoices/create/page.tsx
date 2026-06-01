@@ -253,6 +253,7 @@ export default function CreateInvoicePage() {
       <form
         // id="invoice-form"
         // onSubmit={handleSubmit(onSubmit)}
+        onSubmit={(e) => e.preventDefault()}
         noValidate
         className="flex flex-col lg:flex-row gap-6 items-start"
       >

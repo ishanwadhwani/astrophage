@@ -4,12 +4,15 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
+  Image,
 } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { numberToWords } from "@/lib/numberToWords";
 
-// ─── Styles ───────────────────────────────────────────────
+interface Props {
+  invoice: Invoice;
+  qrDataUrl?: string;
+}
 
 const C = {
   primary: "#2563EB",
@@ -251,7 +254,7 @@ const s = StyleSheet.create({
     color: C.dark,
   },
 
-  // Bank + Footer
+  // Bank
   bottomRow: {
     flexDirection: "row",
     gap: 16,
@@ -292,6 +295,46 @@ const s = StyleSheet.create({
     paddingTop: 4,
   },
 
+  // qr-code
+  paymentSection: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 16,
+    alignItems: "flex-start",
+  },
+  qrBox: {
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  qrImage: {
+    width: 100,
+    height: 100,
+  },
+  qrLabel: {
+    fontSize: 8,
+    color: "#64748B",
+    marginTop: 6,
+    textAlign: "center",
+  },
+  qrAmount: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#2563EB",
+    marginTop: 2,
+    textAlign: "center",
+  },
+  upiId: {
+    fontSize: 8,
+    color: "#64748B",
+    marginTop: 2,
+    textAlign: "center",
+    fontFamily: "Helvetica-Bold",
+  },
+
   // Footer
   footer: {
     position: "absolute",
@@ -319,8 +362,6 @@ const s = StyleSheet.create({
   },
 });
 
-// ─── Helpers ──────────────────────────────────────────────
-
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -335,9 +376,7 @@ const fmtAmt = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-// ─── Component ────────────────────────────────────────────
-
-export function InvoicePDF({ invoice }: { invoice: Invoice }) {
+export function InvoicePDF({ invoice, qrDataUrl }: Props) {
   const isIGST = invoice.taxType === "IGST";
   const taxColLabel = isIGST ? "IGST" : "CGST / SGST";
 
@@ -348,7 +387,6 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
       subject="Tax Invoice"
     >
       <Page size="A4" style={s.page}>
-        {/* ── Header ──────────────────────────────── */}
         <View style={s.header}>
           <View>
             <Text style={s.businessName}>{invoice.business.name}</Text>
@@ -381,7 +419,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           </View>
         </View>
 
-        {/* ── Dates ───────────────────────────────── */}
+        {/* Dates */}
         <View style={s.datesRow}>
           <View style={s.dateBox}>
             <Text style={s.dateLabel}>Invoice Date</Text>
@@ -401,7 +439,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           </View>
         </View>
 
-        {/* ── From / Billed To ────────────────────── */}
+        {/* From / Billed To */}
         <View style={s.infoRow}>
           <View style={s.infoBox}>
             <Text style={s.infoLabel}>From</Text>
@@ -441,7 +479,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           </View>
         </View>
 
-        {/* ── Line Items Table ─────────────────────── */}
+        {/* Line Items Table */}
         <View style={s.table}>
           {/* Header */}
           <View style={s.tableHeader}>
@@ -472,7 +510,7 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           })}
         </View>
 
-        {/* ── Totals ───────────────────────────────── */}
+        {/* Totals */}
         <View style={s.totalsSection}>
           <View style={s.totalsBox}>
             <View style={s.totalRow}>
@@ -507,16 +545,47 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
           </View>
         </View>
 
-        {/* ── Amount in words ──────────────────────── */}
+        {/* Amount in words */}
         <View style={s.wordsBox}>
           <Text style={s.wordsLabel}>Amount in Words</Text>
           <Text style={s.wordsText}>{numberToWords(invoice.total)}</Text>
         </View>
 
-        {/* ── Bank Details + Signature ─────────────── */}
-        <View style={s.bottomRow}>
+        <View style={s.paymentSection}>
+          {/* UPI QR Code */}
+          {qrDataUrl && invoice.business.upiId && (
+            <View style={s.qrBox}>
+              <Text
+                style={{
+                  fontSize: 7,
+                  fontFamily: "Helvetica-Bold",
+                  color: "#64748B",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 6,
+                }}
+              >
+                Scan to Pay
+              </Text>
+              <Image src={qrDataUrl} style={s.qrImage} />
+              <Text style={s.upiId}>{invoice.business.upiId}</Text>
+              <Text style={s.qrAmount}>{fmtAmt(invoice.total)}</Text>
+              <Text style={s.qrLabel}>
+                Works with GPay, PhonePe,{"\n"}Paytm, any UPI app
+              </Text>
+            </View>
+          )}
+
+          {/* Bank Details */}
           {invoice.business.bankDetails && (
-            <View style={s.bankBox}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "#F8FAFC",
+                padding: 10,
+                borderRadius: 8,
+              }}
+            >
               <Text style={s.infoLabel}>Bank Details</Text>
               <View style={s.bankRow}>
                 <Text style={s.bankKey}>Bank</Text>
@@ -543,21 +612,22 @@ export function InvoicePDF({ invoice }: { invoice: Invoice }) {
                 </Text>
               </View>
               <View style={s.bankRow}>
-                <Text style={s.bankKey}>Account Type</Text>
+                <Text style={s.bankKey}>Type</Text>
                 <Text style={s.bankVal}>
                   {invoice.business.bankDetails.accountType}
                 </Text>
               </View>
             </View>
           )}
-
-          <View style={s.signatureBox}>
-            <Text style={s.infoText}>For {invoice.business.name}</Text>
-            <Text style={s.signatureLabel}>Authorised Signatory</Text>
-          </View>
         </View>
 
-        {/* ── Footer ───────────────────────────────── */}
+        {/* Signature */}
+        <View style={s.signatureBox}>
+          <Text style={s.infoText}>For {invoice.business.name}</Text>
+          <Text style={s.signatureLabel}>Authorised Signatory</Text>
+        </View>
+
+        {/* Footer */}
         <View style={s.footer}>
           <Text style={s.footerText}>
             This is an electronically generated document, no signature is

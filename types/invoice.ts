@@ -62,6 +62,7 @@ export interface Invoice {
   lineItems: LineItem[];
   payments: Payment[];
   createdAt: string;
+  upiId: string | null;
 
   business: Business & { bankDetails: BankDetails | null };
   client: {
