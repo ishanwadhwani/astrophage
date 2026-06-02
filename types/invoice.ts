@@ -9,6 +9,7 @@ export type InvoiceStatus =
 export type TaxType = "IGST" | "CGST_SGST";
 export type TemplateType = "BASE" | "CUSTOM";
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CARD";
+export type BillFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
 
 export interface LineItem {
   id: string;
@@ -112,4 +113,60 @@ export interface InvoiceClient {
   city: string | null;
   state: string | null;
   pincode: string | null;
+}
+
+export interface RecurringInvoiceLineItem {
+  id?: string;
+  description: string;
+  hsnSac: string | null;
+  quantity: number;
+  rate: number;
+  gstRate: number;
+}
+
+export interface RecurringInvoice {
+  id: string;
+  businessId: string;
+  clientId: string;
+  frequency: BillFrequency;
+  nextDueDate: string;
+  placeOfSupply: string;
+  isGstInvoice: boolean;
+  isActive: boolean;
+  notes: string | null;
+  client: { id: string; name: string };
+  lineItems: RecurringInvoiceLineItem[];
+}
+
+export interface CreateRecurringInvoicePayload {
+  businessId: string;
+  clientId: string;
+  lineItems: {
+    description: string;
+    hsnSac?: string;
+    quantity: number;
+    rate: number;
+    gstRate: number;
+  }[];
+  frequency: BillFrequency;
+  nextDueDate: string;
+  placeOfSupply: string;
+  isGstInvoice: boolean;
+  notes?: string;
+}
+
+export interface RecurringForm {
+  clientId: string;
+  frequency: BillFrequency;
+  nextDueDate: string;
+  placeOfSupply: string;
+  isGstInvoice: boolean;
+  notes: string;
+  lineItems: {
+    description: string;
+    hsnSac: string;
+    quantity: number;
+    rate: number;
+    gstRate: number;
+  }[];
 }

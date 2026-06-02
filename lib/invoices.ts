@@ -3,6 +3,8 @@ import {
   Invoice,
   CreateInvoicePayload,
   RecordPaymentPayload,
+  RecurringInvoice,
+  CreateRecurringInvoicePayload,
 } from "@/types/invoice";
 
 export const fetchInvoices = async (businessId: string): Promise<Invoice[]> => {
@@ -61,4 +63,37 @@ export const emailInvoice = async (
 
 export const markInvoiceGSTFiled = async (id: string): Promise<void> => {
   await axiosInstance.put(`/api/invoices/${id}/mark-filed`);
+};
+
+export const fetchRecurringInvoices = async (
+  businessId: string,
+): Promise<RecurringInvoice[]> => {
+  const res = await axiosInstance.get<RecurringInvoice[]>(
+    "/api/invoices/recurring",
+    { params: { businessId } },
+  );
+  return res.data;
+};
+
+export const createRecurringInvoice = async (
+  payload: CreateRecurringInvoicePayload,
+): Promise<RecurringInvoice> => {
+  const res = await axiosInstance.post<RecurringInvoice>(
+    "/api/invoices/recurring",
+    payload,
+  );
+  return res.data;
+};
+
+export const toggleRecurringInvoice = async (
+  id: string,
+): Promise<RecurringInvoice> => {
+  const res = await axiosInstance.put<RecurringInvoice>(
+    `/api/invoices/recurring/${id}`,
+  );
+  return res.data;
+};
+
+export const deleteRecurringInvoice = async (id: string): Promise<void> => {
+  await axiosInstance.delete(`/api/invoices/recurring/${id}`);
 };
