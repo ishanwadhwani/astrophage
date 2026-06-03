@@ -27,6 +27,8 @@ import RecurringInvoiceTable from "./_components/RecurringInvoiceTable";
 import AddRecurringInvoiceModal from "./_components/AddRecurringInvoiceModal";
 import { fetchClients } from "@/lib/clients";
 import { Client } from "@/types/client";
+import InvoiceExportButton from "./_components/ExportButton";
+
 // import { useForm, Controller } from "react-hook-form";
 // import Modal from "@/components/shared/Modal";
 
@@ -127,12 +129,15 @@ export default function InvoicesPage() {
             {invoices.length} invoice{invoices.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <Link
-          href="/invoices/create"
-          className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
-        >
-          New invoice
-        </Link>
+        <div className="flex items-center gap-2">
+          <InvoiceExportButton invoices={filtered} label="Export" />
+          <Link
+            href="/invoices/create"
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+          >
+            New invoice
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

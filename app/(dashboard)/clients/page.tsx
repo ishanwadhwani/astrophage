@@ -15,6 +15,7 @@ import { STATES } from "@/constants/invoice-options";
 import { ClientForm } from "@/types/client";
 import { useBusiness } from "@/hooks/useBusiness";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { exportToCSV } from "@/lib/csv";
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -31,6 +32,35 @@ export default function ClientsPage() {
   const [serverError, setServerError] = useState("");
 
   const { businessId } = useBusiness();
+
+  const handleExportClients = () => {
+    const headers = [
+      "Name",
+      "Email",
+      "Phone",
+      "GSTIN",
+      "PAN",
+      "Address",
+      "City",
+      "State",
+      "Pincode",
+      "Notes",
+    ];
+    const rows = clients.map((c) => [
+      c.name,
+      c.email ?? "",
+      c.phone ?? "",
+      c.gstin ?? "",
+      c.pan ?? "",
+      c.address ?? "",
+      c.city ?? "",
+      c.state ?? "",
+      c.pincode ?? "",
+      c.notes ?? "",
+    ]);
+
+    exportToCSV("clients", headers, rows);
+  };
 
   const {
     register,
@@ -165,27 +195,52 @@ export default function ClientsPage() {
             {clients.length} client{clients.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingClient(null);
-            reset({
-              name: "",
-              email: "",
-              phone: "",
-              gstin: "",
-              pan: "",
-              address: "",
-              city: "",
-              state: "",
-              pincode: "",
-              notes: "",
-            });
-            setIsModalOpen(true);
-          }}
-          className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
-        >
-          Add client
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Add export button */}
+          <button
+            onClick={handleExportClients}
+            disabled={clients.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7,10 12,15 17,10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export
+          </button>
+          {/* Add client button */}
+          <button
+            onClick={() => {
+              setEditingClient(null);
+              reset({
+                name: "",
+                email: "",
+                phone: "",
+                gstin: "",
+                pan: "",
+                address: "",
+                city: "",
+                state: "",
+                pincode: "",
+                notes: "",
+              });
+              setIsModalOpen(true);
+            }}
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
+          >
+            Add client
+          </button>
+        </div>
       </div>
 
       {loading ? (

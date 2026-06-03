@@ -21,6 +21,7 @@ import RecordBillPaymentModal from "./_components/RecordBillPaymentModal";
 import RecurringBillTable from "./_components/RecurringBillTable";
 import AddRecurringBillModal from "./_components/AddRecurringBillModal";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { exportToCSV, fmtCSVDate, fmtCSVAmount } from "@/lib/csv";
 
 type TabType = "Vendors" | "Bills" | "Recurring";
 
@@ -110,6 +111,56 @@ export default function VendorsPage() {
     );
   };
 
+  const handleExport = () => {
+    if (tab === "Vendors") {
+      exportToCSV(
+        "vendors",
+        ["Name", "Email", "Phone", "GSTIN", "PAN", "State", "City", "Notes"],
+        vendors.map((v) => [
+          v.name,
+          v.email ?? "",
+          v.phone ?? "",
+          v.gstin ?? "",
+          v.pan ?? "",
+          v.state ?? "",
+          v.city ?? "",
+          v.notes ?? "",
+        ]),
+      );
+      return;
+    }
+
+    if (tab === "Bills") {
+      exportToCSV(
+        "bills",
+        [
+          "Description",
+          "Vendor",
+          "Bill No",
+          "Amount",
+          "Due Date",
+          "Paid",
+          "Outstanding",
+          "Status",
+        ],
+        bills.map((b) => {
+          const paid = (b.payments ?? []).reduce((s, p) => s + p.amount, 0);
+          const outstanding = b.amount - paid;
+          return [
+            b.description,
+            b.vendor.name,
+            b.number ?? "",
+            fmtCSVAmount(b.amount),
+            fmtCSVDate(b.dueDate),
+            fmtCSVAmount(paid),
+            fmtCSVAmount(outstanding),
+            b.status,
+          ];
+        }),
+      );
+    }
+  };
+
   if (loading) return <LoadingState page="vendors" />;
 
   return (
@@ -124,20 +175,42 @@ export default function VendorsPage() {
             Track who you owe and when payments are due
           </p>
         </div>
-        <button
-          onClick={() => {
-            if (tab === "Vendors") setVendorModalOpen(true);
-            if (tab === "Bills") setBillModalOpen(true);
-            if (tab === "Recurring") setRecurringModalOpen(true);
-          }}
-          className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
-        >
-          {tab === "Vendors"
-            ? "Add Vendor"
-            : tab === "Bills"
-              ? "Add Bill"
-              : "Add Recurring Bill"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7,10 12,15 17,10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export
+          </button>
+          <button
+            onClick={() => {
+              if (tab === "Vendors") setVendorModalOpen(true);
+              if (tab === "Bills") setBillModalOpen(true);
+              if (tab === "Recurring") setRecurringModalOpen(true);
+            }}
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+          >
+            {tab === "Vendors"
+              ? "Add Vendor"
+              : tab === "Bills"
+                ? "Add Bill"
+                : "Add Recurring Bill"}
+          </button>
+        </div>
       </div>
 
       <VendorStats vendors={vendors} bills={bills} />
