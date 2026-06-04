@@ -4,13 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import {
-  Invoice,
-  InvoiceStatus,
-  RecurringInvoice,
-  CreateRecurringInvoicePayload,
-  BillFrequency,
-} from "@/types/invoice";
+import { Invoice, InvoiceStatus, RecurringInvoice } from "@/types/invoice";
 import {
   fetchInvoices,
   deleteInvoice,
@@ -27,10 +21,9 @@ import RecurringInvoiceTable from "./_components/RecurringInvoiceTable";
 import AddRecurringInvoiceModal from "./_components/AddRecurringInvoiceModal";
 import { fetchClients } from "@/lib/clients";
 import { Client } from "@/types/client";
-import InvoiceExportButton from "./_components/ExportButton";
-
-// import { useForm, Controller } from "react-hook-form";
-// import Modal from "@/components/shared/Modal";
+import InvoiceExportButton, {
+  RecurringInvoiceExportButton,
+} from "./_components/ExportButton";
 
 export default function InvoicesPage() {
   const user = getUser();
@@ -130,13 +123,21 @@ export default function InvoicesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <InvoiceExportButton invoices={filtered} label="Export" />
-          <Link
-            href="/invoices/create"
+          {pageTab === "invoices" ? (
+            <InvoiceExportButton invoices={filtered} label="Export" />
+          ) : (
+            <RecurringInvoiceExportButton items={recurring} label="Export" />
+          )}{" "}
+          <button
+            onClick={() =>
+              pageTab === "invoices"
+                ? router.push("/invoices/create")
+                : setRecurringModal(true)
+            }
             className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
           >
-            New invoice
-          </Link>
+            {pageTab === "invoices" ? "New Invoice" : "Add Recurring"}
+          </button>
         </div>
       </div>
 
@@ -250,7 +251,7 @@ export default function InvoicesPage() {
           />
           <AddRecurringInvoiceModal
             isOpen={recurringModal}
-            businessId={businessId}
+            businessId={businessId!}
             clients={clients}
             onClose={() => setRecurringModal(false)}
             onCreated={(ri) => setRecurring((prev) => [ri, ...prev])}

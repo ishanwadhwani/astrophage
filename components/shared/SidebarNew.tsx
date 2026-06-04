@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import { logout } from "@/lib/auth";
+
+const BusinessSwitcher = dynamic(() => import("./BusinessSwitcher"), {
+  ssr: false,
+});
 
 type StoredUser = {
   name?: string;
@@ -195,7 +201,7 @@ export default function SidebarNew({ onClose }: SidebarProps) {
     <aside className="flex h-full w-full flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
             <svg
               width="14"
               height="14"
@@ -253,9 +259,13 @@ export default function SidebarNew({ onClose }: SidebarProps) {
         })}
       </nav>
 
-      <div className="flex-shrink-0 border-t border-border px-3 py-4">
+      <div className="border-t border-border">
+        <BusinessSwitcher />
+      </div>
+
+      <div className="px-3 py-3 border-t border-border shrink-0">
         <div className="flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
             {initial}
           </div>
 
@@ -271,7 +281,7 @@ export default function SidebarNew({ onClose }: SidebarProps) {
           <button
             onClick={logout}
             title="Sign out"
-            className="flex-shrink-0 text-muted-foreground transition hover:text-destructive"
+            className="shrink-0 text-muted-foreground transition hover:text-destructive"
           >
             <svg
               width="14"

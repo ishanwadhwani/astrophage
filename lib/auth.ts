@@ -1,5 +1,11 @@
 import { axiosInstance } from "./axiosInstance";
-import { AuthResponse, LoginPayload, RegisterPayload } from "@/types/auth";
+import {
+  AuthResponse,
+  LoginPayload,
+  RegisterPayload,
+  BusinessSummary,
+  User,
+} from "@/types/auth";
 
 export const registerUser = async (
   payload: RegisterPayload,
@@ -24,20 +30,37 @@ export const loginUser = async (
 export const saveAuth = (data: AuthResponse): void => {
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data.user));
-  // cookie
   document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
 };
 
-export const getUser = () => {
+export const getUser = (): User | null => {
   if (typeof window === "undefined") return null;
-  const user = localStorage.getItem("user");
-  return user ? JSON.parse(user) : null;
+  const raw = localStorage.getItem("user");
+  return raw ? JSON.parse(raw) : null;
+};
+
+// currently active business
+export const getCurrentBusiness = (): BusinessSummary | null => {
+  return getUser()?.business ?? null;
+};
+
+// businesses the user owns
+export const getAllBusinesses = (): BusinessSummary[] => {
+  return getUser()?.businesses ?? [];
+};
+
+// Switch active business — updates localStorage, reloads page
+export const switchBusiness = (business: BusinessSummary): void => {
+  const user = getUser();
+  if (!user) return;
+  const updated = { ...user, business };
+  localStorage.setItem("user", JSON.stringify(updated));
+  window.location.href = "/dashboard";
 };
 
 export const logout = (): void => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
-
   document.cookie = "auth-token=; path=/; max-age=0; SameSite=Strict";
   window.location.href = "/login";
 };

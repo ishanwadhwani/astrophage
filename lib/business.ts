@@ -1,8 +1,18 @@
 import { axiosInstance } from "./axiosInstance";
 import { Business, BankDetails } from "@/types/business";
+import { BusinessSummary } from "@/types/auth";
 
 export const fetchBusiness = async (id: string): Promise<Business> => {
   const res = await axiosInstance.get<Business>(`/api/businesses/${id}`);
+  return res.data;
+};
+
+export const createBusiness = async (
+  name: string,
+): Promise<BusinessSummary> => {
+  const res = await axiosInstance.post<BusinessSummary>("/api/businesses", {
+    name,
+  });
   return res.data;
 };
 

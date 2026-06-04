@@ -85,13 +85,31 @@ export default function OnboardingPage() {
 
   const onSaveBusiness = async (values: BusinessForm) => {
     try {
+      if (!businessId) {
+        throw new Error("Business ID is required");
+      }
       await updateBusiness(businessId, values);
+
+      const user = getUser();
+      if (user) {
+        const updated = {
+          ...user,
+          business: { ...user.business, ...values },
+          businesses: user.businesses.map((b) =>
+            b.id === businessId ? { ...b, name: values.name } : b,
+          ),
+        };
+        localStorage.setItem("user", JSON.stringify(updated));
+      }
       setStep(2);
     } catch {}
   };
 
   const onSaveBank = async (values: BankForm) => {
     try {
+      if (!businessId) {
+        throw new Error("Business ID is required");
+      }
       await saveBankDetails(businessId, values);
       router.push("/dashboard");
     } catch {}

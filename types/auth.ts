@@ -2,10 +2,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  business: {
-    id: string;
-    name: string;
-  };
+  business: BusinessSummary;
+  businesses: BusinessSummary[];
 }
 
 export interface AuthResponse {
@@ -23,4 +21,10 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string;
   password: string;
+}
+
+export interface BusinessSummary {
+  id: string;
+  name: string;
+  gstin: string | null;
 }

@@ -158,6 +158,29 @@ export default function VendorsPage() {
           ];
         }),
       );
+      return;
+    }
+
+    if (tab === "Recurring") {
+      exportToCSV(
+        "recurring-bills",
+        [
+          "Description",
+          "Vendor",
+          "Amount",
+          "Frequency",
+          "Next Due Date",
+          "Status",
+        ],
+        recurring.map((rb) => [
+          rb.description,
+          rb.vendor.name,
+          fmtCSVAmount(rb.amount),
+          rb.frequency,
+          fmtCSVDate(rb.nextDueDate),
+          rb.isActive ? "Active" : "Paused",
+        ]),
+      );
     }
   };
 
@@ -263,14 +286,14 @@ export default function VendorsPage() {
       {/* Modals */}
       <AddVendorModal
         isOpen={vendorModalOpen}
-        businessId={businessId}
+        businessId={businessId!}
         onClose={() => setVendorModalOpen(false)}
         onCreated={(vendor) => setVendors((prev) => [vendor, ...prev])}
       />
 
       <AddBillModal
         isOpen={billModalOpen}
-        businessId={businessId}
+        businessId={businessId!}
         vendors={vendors}
         onClose={() => setBillModalOpen(false)}
         onCreated={(bill) => setBills((prev) => [bill, ...prev])}
@@ -278,7 +301,7 @@ export default function VendorsPage() {
 
       <AddRecurringBillModal
         isOpen={recurringModalOpen}
-        businessId={businessId}
+        businessId={businessId!}
         vendors={vendors}
         onClose={() => setRecurringModalOpen(false)}
         onCreated={(rb) => setRecurring((prev) => [rb, ...prev])}
