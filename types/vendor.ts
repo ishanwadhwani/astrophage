@@ -33,6 +33,27 @@ export interface Bill {
   createdAt: string;
 }
 
+export interface BillWithPayments extends Bill {
+  payments: {
+    id: string;
+    amount: number;
+    mode: PaymentMode;
+    referenceNumber: string | null;
+    paymentDate: string;
+    notes: string | null;
+  }[];
+}
+
+export interface VendorDetail {
+  vendor: Vendor;
+  bills: BillWithPayments[];
+  summary: {
+    totalBilled: number;
+    totalPaid: number;
+    outstanding: number;
+  };
+}
+
 export interface CreateVendorPayload {
   name: string;
   email?: string;

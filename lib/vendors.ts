@@ -7,6 +7,7 @@ import {
   RecordBillPaymentPayload,
   RecurringBill,
   CreateRecurringBillPayload,
+  VendorDetail,
 } from "@/types/vendor";
 
 export const fetchVendors = async (businessId: string): Promise<Vendor[]> => {
@@ -20,6 +21,17 @@ export const createVendor = async (
   payload: CreateVendorPayload,
 ): Promise<Vendor> => {
   const res = await axiosInstance.post<Vendor>("/api/vendors", payload);
+  return res.data;
+};
+
+export const fetchVendorDetail = async (
+  id: string,
+  businessId: string,
+): Promise<VendorDetail> => {
+  const res = await axiosInstance.get<VendorDetail>(
+    `/api/vendors/${id}/detail`,
+    { params: { businessId } },
+  );
   return res.data;
 };
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Vendor } from "@/types/vendor";
 
 interface Props {
@@ -33,7 +34,12 @@ export default function VendorTable({ vendors, onDelete }: Props) {
         {vendors.map((vendor) => (
           <tr key={vendor.id} className="hover:bg-muted/30 transition">
             <td className="px-4 py-3 font-medium text-foreground">
-              {vendor.name}
+              <Link
+                href={`/vendors/${vendor.id}`}
+                className="hover:text-primary transition"
+              >
+                {vendor.name}
+              </Link>
             </td>
             <td className="px-4 py-3 text-muted-foreground">
               {vendor.phone ?? "—"}
