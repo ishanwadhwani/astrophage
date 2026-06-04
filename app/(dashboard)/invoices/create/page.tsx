@@ -72,6 +72,7 @@ export default function CreateInvoicePage() {
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateInvoicePayload>({
     defaultValues: {
@@ -142,6 +143,7 @@ export default function CreateInvoicePage() {
   const grandTotal = subtotal + totalTax;
 
   const selectedClient = clients.find((c) => c.id === watchedClientId);
+  const watchedIsGst = watch("isGstInvoice");
 
   const taxByRate = watchedLineItems.reduce<Record<number, number>>(
     (acc, item, i) => {
@@ -155,9 +157,12 @@ export default function CreateInvoicePage() {
   const onSubmit = async (values: CreateInvoicePayload) => {
     setServerError("");
     try {
+      if (!businessId) {
+        throw new Error("Business ID is required");
+      }
       const payload: CreateInvoicePayload = {
         ...values,
-        businessId,
+        businessId: businessId,
         saveAsDraft: isDraftRef.current,
         lineItems: values.lineItems.map((item) => ({
           ...item,
@@ -165,6 +170,7 @@ export default function CreateInvoicePage() {
         })),
       };
       const invoice = await createInvoice(payload);
+      router.refresh();
       router.push(`/invoices/${invoice.id}`);
     } catch (err: unknown) {
       let message = "Failed to create invoice";
@@ -374,9 +380,12 @@ export default function CreateInvoicePage() {
                 >
                   Mark as GST Invoice
                 </label>
-                <p className="text-xs text-muted-foreground">
-                  Flag this invoice for GST return filing
-                </p>
+                {watchedIsGst && selectedClient && !selectedClient.gstin && (
+                  <p className="text-xs text-status-pending-foreground mt-1">
+                    ⚠ This client has no GSTIN. Invoice will be created but may
+                    not be valid for GST filing.
+                  </p>
+                )}
               </div>
             </div>
           </SectionCard>
@@ -623,6 +632,10 @@ export default function CreateInvoicePage() {
               type="submit"
               disabled={isSubmitting}
               className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all"
+              onClick={() => {
+                isDraftRef.current = false;
+                handleSubmit(onSubmit)();
+              }}
             >
               {isSubmitting ? "Creating..." : "Create Invoice"}
             </button>

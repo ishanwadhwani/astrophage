@@ -2,28 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { Trash2, Check } from "lucide-react";
 import {
   getAllBusinesses,
   getCurrentBusiness,
   switchBusiness,
   getUser,
 } from "@/lib/auth";
-import { createBusiness } from "@/lib/business";
+import { createBusiness, deleteBusiness } from "@/lib/business";
 import { BusinessSummary } from "@/types/auth";
+import { useToast } from "@/components/ui/Toast";
 
 type NewBizForm = { name: string };
 
 export default function BusinessSwitcher() {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-//   const [isMounted, setIsMounted] = useState(false);
+  //   const [isMounted, setIsMounted] = useState(false);
 
-//     useEffect(() => {
-//     setIsMounted(true);
-//   }, []);
+  //     useEffect(() => {
+  //     setIsMounted(true);
+  //   }, []);
 
   const current = getCurrentBusiness();
   const businesses = getAllBusinesses();
+
+  const { confirm, success, error } = useToast();
 
   const {
     register,
@@ -60,7 +64,7 @@ export default function BusinessSwitcher() {
     } catch {}
   };
 
-//   if (!isMounted) return null;
+  //   if (!isMounted) return null;
   if (!current) return null;
 
   return (
@@ -113,7 +117,7 @@ export default function BusinessSwitcher() {
             {/* Existing businesses */}
             <div className="p-1">
               {businesses.map((biz) => (
-                <button
+                <div
                   key={biz.id}
                   onClick={() => onSwitch(biz)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition ${
@@ -123,7 +127,7 @@ export default function BusinessSwitcher() {
                   }`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
                       biz.id === current.id
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
@@ -139,21 +143,48 @@ export default function BusinessSwitcher() {
                       </p>
                     )}
                   </div>
-                  {biz.id === current.id && (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                  {biz.id === current.id && <Check className="h-4 w-4" />}
+                  {biz.id !== current.id && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const confirmed = await confirm({
+                          title: "Delete Business",
+                          message:
+                            "This will permanently delete the business and all the data.",
+                          confirmText: "Delete",
+                          danger: true,
+                        });
+                        if (!confirmed) return;
+                        try {
+                          await deleteBusiness(biz.id);
+                          success("Business deleted");
+                          const user = getUser();
+                          if (user) {
+                            const updated = {
+                              ...user,
+                              businesses: user.businesses.filter(
+                                (b) => b.id !== biz.id,
+                              ),
+                            };
+                            localStorage.setItem(
+                              "user",
+                              JSON.stringify(updated),
+                            );
+                            window.location.reload();
+                          }
+                        } catch {
+                          error("Failed to delete", "Please try again.");
+                        }
+                      }}
+                      className="group-hover/biz:opacity-100 transition p-0.5 cursor-pointer"
                     >
-                      <polyline points="20,6 9,17 4,12" />
-                    </svg>
+                      <span className="text-red-500 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </span>
+                    </button>
                   )}
-                </button>
+                </div>
               ))}
             </div>
 

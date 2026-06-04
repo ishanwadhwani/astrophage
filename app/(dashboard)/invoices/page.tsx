@@ -41,6 +41,7 @@ export default function InvoicesPage() {
   const [recurringModal, setRecurringModal] = useState(false);
 
   useEffect(() => {
+    // setLoading(true);
     if (!businessId) return;
 
     const fetchData = async () => {

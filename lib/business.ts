@@ -24,6 +24,10 @@ export const updateBusiness = async (
   return res.data;
 };
 
+export const deleteBusiness = async (id: string): Promise<void> => {
+  await axiosInstance.delete(`/api/businesses/${id}`);
+};
+
 export const saveBankDetails = async (
   businessId: string,
   data: Omit<BankDetails, "id">,
