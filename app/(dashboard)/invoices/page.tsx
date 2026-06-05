@@ -12,6 +12,7 @@ import {
   // createRecurringInvoice,
   toggleRecurringInvoice,
   deleteRecurringInvoice,
+  bulkDeleteInvoices,
 } from "@/lib/invoices";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -24,6 +25,7 @@ import { Client } from "@/types/client";
 import InvoiceExportButton, {
   RecurringInvoiceExportButton,
 } from "./_components/ExportButton";
+import { useToast } from "@/components/ui/Toast";
 
 export default function InvoicesPage() {
   const user = getUser();
@@ -39,6 +41,14 @@ export default function InvoicesPage() {
   const [recurring, setRecurring] = useState<RecurringInvoice[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [recurringModal, setRecurringModal] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+
+  // const handleClearDate = () => {
+  //   setDateRange({ from: "", to: "" });
+  // };
+
+  const { confirm, success, error } = useToast();
 
   useEffect(() => {
     // setLoading(true);
@@ -77,9 +87,15 @@ export default function InvoicesPage() {
         inv.number.toLowerCase().includes(query) ||
         inv.client.name.toLowerCase().includes(query);
 
-      return matchesStatus && matchesSearch;
+      const invDate = new Date(inv.invoiceDate);
+      const matchesFrom =
+        !dateRange.from || invDate >= new Date(dateRange.from);
+      const matchesTo =
+        !dateRange.to || invDate <= new Date(dateRange.to + "T23:59:59");
+
+      return matchesStatus && matchesSearch && matchesFrom && matchesTo;
     });
-  }, [invoices, search, status]);
+  }, [invoices, search, status, dateRange]);
 
   const stats = useMemo(() => {
     const totalReceivables = invoices
@@ -96,8 +112,60 @@ export default function InvoicesPage() {
     return { totalReceivables, overdueCount, paidCount };
   }, [invoices]);
 
+  // useEffect(() => {
+  //   setSelected(new Set());
+  // }, [search, status]);
+
+  // const handleSearchChange = (value: string) => {
+  //   setSearch(value);
+  //   setSelected(new Set());
+  // };
+
+  // const handleStatusChange = (value: InvoiceStatus | "ALL") => {
+  //   setStatus(value);
+  //   setSelected(new Set());
+  // };
+
+  const handleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelected((prev) =>
+      prev.size === filtered.length
+        ? new Set()
+        : new Set(filtered.map((i) => i.id)),
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    const confirmed = await confirm({
+      title: `Delete ${selected.size} invoice${selected.size !== 1 ? "s" : ""}`,
+      message:
+        "This will permanently delete the selected invoices and all their payment records.",
+      confirmText: "Delete all",
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const result = await bulkDeleteInvoices([...selected], businessId!);
+      setInvoices((prev) => prev.filter((i) => !selected.has(i.id)));
+      setSelected(new Set());
+      success(
+        `${result.deleted} invoice${result.deleted !== 1 ? "s" : ""} deleted`,
+      );
+    } catch {
+      error("Failed to delete invoices");
+    }
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this invoice?")) return;
+    if (!confirm) return;
     try {
       await deleteInvoice(id);
       setInvoices((prev) => prev.filter((i) => i.id !== id));
@@ -208,11 +276,49 @@ export default function InvoicesPage() {
       <InvoiceFilters
         search={search}
         status={status}
+        dateRange={dateRange}
         onSearch={setSearch}
         onStatusChange={setStatus}
+        onDateRange={setDateRange}
+        onClearDate={() => setDateRange({ from: "", to: "" })}
         totalCount={invoices.length}
         filteredCount={filtered.length}
       />
+
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
+          <p className="text-sm font-semibold text-foreground">
+            {selected.size} invoice{selected.size !== 1 ? "s" : ""} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-lg hover:bg-destructive/90 transition"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="3,6 5,6 21,6" />
+                <path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6" />
+              </svg>
+              Delete {selected.size}
+            </button>
+          </div>
+        </div>
+      )}
 
       {pageTab === "invoices" && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -229,7 +335,13 @@ export default function InvoicesPage() {
               </Link>
             </div>
           ) : (
-            <InvoiceTable invoices={filtered} onDelete={handleDelete} />
+            <InvoiceTable
+              invoices={filtered}
+              selected={selected}
+              onSelect={handleSelect}
+              onSelectAll={handleSelectAll}
+              onDelete={handleDelete}
+            />
           )}
         </div>
       )}
@@ -245,7 +357,7 @@ export default function InvoicesPage() {
               );
             }}
             onDelete={async (id) => {
-              if (!confirm("Delete this recurring invoice?")) return;
+              if (!confirm) return;
               await deleteRecurringInvoice(id);
               setRecurring((prev) => prev.filter((r) => r.id !== id));
             }}

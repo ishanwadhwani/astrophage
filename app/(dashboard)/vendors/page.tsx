@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Vendor, Bill, RecurringBill } from "@/types/vendor";
 import {
   fetchVendors,
@@ -35,6 +35,7 @@ export default function VendorsPage() {
   const [recurring, setRecurring] = useState<RecurringBill[]>([]);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [billDateRange, setBillDateRange] = useState({ from: "", to: "" });
 
   const [vendorModalOpen, setVendorModalOpen] = useState(false);
   const [billModalOpen, setBillModalOpen] = useState(false);
@@ -61,6 +62,17 @@ export default function VendorsPage() {
 
     void fetchData();
   }, [businessId]);
+
+  const filteredBills = useMemo(() => {
+    return bills.filter((bill) => {
+      const due = new Date(bill.dueDate);
+      const matchesFrom =
+        !billDateRange.from || due >= new Date(billDateRange.from);
+      const matchesTo =
+        !billDateRange.to || due <= new Date(billDateRange.to + "T23:59:59");
+      return matchesFrom && matchesTo;
+    });
+  }, [bills, billDateRange]);
 
   const handleToggleRecurring = async (id: string) => {
     try {
@@ -265,13 +277,45 @@ export default function VendorsPage() {
           <VendorTable vendors={vendors} onDelete={handleDeleteVendor} />
         )}
 
-        {/* Assuming your second tab is called "Bills" */}
         {tab === "Bills" && (
-          <BillTable
-            bills={bills}
-            onPay={setPaymentBill}
-            onDelete={handleDeleteBill}
-          />
+          <div className="flex items-center gap-2 p-4">
+            <span className="text-xs text-muted-foreground">Due date:</span>
+            <input
+              type="date"
+              value={billDateRange.from}
+              onChange={(e) =>
+                setBillDateRange((p) => ({ ...p, from: e.target.value }))
+              }
+              className="px-3 py-2 bg-card border border-input rounded-lg text-sm outline-none focus:border-primary transition"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <input
+              type="date"
+              value={billDateRange.to}
+              onChange={(e) =>
+                setBillDateRange((p) => ({ ...p, to: e.target.value }))
+              }
+              className="px-3 py-2 bg-card border border-input rounded-lg text-sm outline-none focus:border-primary transition"
+            />
+            {(billDateRange.from || billDateRange.to) && (
+              <button
+                onClick={() => setBillDateRange({ from: "", to: "" })}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {tab === "Bills" && (
+          <>
+            <BillTable
+              bills={bills}
+              onPay={setPaymentBill}
+              onDelete={handleDeleteBill}
+            />
+          </>
         )}
 
         {tab === "Recurring" && (

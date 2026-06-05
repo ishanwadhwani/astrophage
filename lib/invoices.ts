@@ -97,3 +97,14 @@ export const toggleRecurringInvoice = async (
 export const deleteRecurringInvoice = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/invoices/recurring/${id}`);
 };
+
+export const bulkDeleteInvoices = async (
+  ids: string[],
+  businessId: string,
+): Promise<{ deleted: number }> => {
+  const res = await axiosInstance.delete<{ deleted: number }>(
+    "/api/invoices/bulk",
+    { data: { ids, businessId } },
+  );
+  return res.data;
+};
