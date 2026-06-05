@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PanelLeftOpen, Cable } from "lucide-react";
+
 import SidebarNew from "./SidebarNew";
 
 export default function DashboardShell({
@@ -36,36 +38,12 @@ export default function DashboardShell({
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted"
             aria-label="Open sidebar"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+            <PanelLeftOpen className="w-5.5 h-5.5" />
           </button>
 
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
-              </svg>
+              <Cable className="w-4 h-4 text-white" />
             </div>
             <Link href="/dashboard">
               <span className="text-sm font-bold text-foreground">

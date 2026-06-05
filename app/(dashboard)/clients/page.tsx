@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { Download, SquarePlus, UserPlus, Plus } from "lucide-react";
 
 import { Client, CreateClientPayload } from "@/types/client";
 import {
@@ -16,6 +17,7 @@ import { ClientForm } from "@/types/client";
 import { useBusiness } from "@/hooks/useBusiness";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { exportToCSV } from "@/lib/csv";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -121,6 +123,10 @@ export default function ClientsPage() {
   const onSubmit = async (values: ClientForm) => {
     setServerError("");
     try {
+      if (!businessId) {
+        throw new Error("Business ID is required");
+      }
+
       if (editingClient) {
         const updated = await updateClient(editingClient.id, values);
         setClients((prev) =>
@@ -129,7 +135,7 @@ export default function ClientsPage() {
       } else {
         const payload: CreateClientPayload = {
           ...values,
-          businessId,
+          businessId: businessId,
           email: values.email || undefined,
           phone: values.phone || undefined,
           gstin: values.gstin || undefined,
@@ -200,46 +206,36 @@ export default function ClientsPage() {
           <button
             onClick={handleExportClients}
             disabled={clients.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all cursor-pointer"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7,10 12,15 17,10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
+            <Download className="w-4 h-4" />
             Export
           </button>
           {/* Add client button */}
-          <button
-            onClick={() => {
-              setEditingClient(null);
-              reset({
-                name: "",
-                email: "",
-                phone: "",
-                gstin: "",
-                pan: "",
-                address: "",
-                city: "",
-                state: "",
-                pincode: "",
-                notes: "",
-              });
-              setIsModalOpen(true);
-            }}
-            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
-          >
-            Add client
-          </button>
+          <PermissionGate permission="client:create">
+            <div
+              onClick={() => {
+                setEditingClient(null);
+                reset({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  gstin: "",
+                  pan: "",
+                  address: "",
+                  city: "",
+                  state: "",
+                  pincode: "",
+                  notes: "",
+                });
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
+            >
+              <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+              Add Client
+            </div>
+          </PermissionGate>
         </div>
       </div>
 

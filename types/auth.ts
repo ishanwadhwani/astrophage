@@ -1,3 +1,5 @@
+export type MemberRole = "OWNER" | "ADMIN" | "EDITOR" | "ACCOUNTANT" | "VIEWER";
+
 export interface User {
   id: string;
   name: string;
@@ -27,4 +29,13 @@ export interface BusinessSummary {
   id: string;
   name: string;
   gstin: string | null;
+  role: MemberRole;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string | null;
+  email: string;
+  role: MemberRole;
+  type: "member" | "invite";
 }

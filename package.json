@@ -4,10 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3005",
-    "build": "next build",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next dev -p 3005",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start -p 3005",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -29,6 +29,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",

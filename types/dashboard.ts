@@ -36,3 +36,21 @@ export interface DashboardData {
   dueSoonBills: DashboardBill[];
   recentInvoices: DashboardInvoice[];
 }
+
+export interface MonthlyTrend {
+  month: string;
+  invoiced: number;
+  collected: number;
+  spent: number;
+}
+
+export interface StatusBreakdown {
+  status: string;
+  count: number;
+  total: number;
+}
+
+export interface DashboardCharts {
+  monthlyTrend: MonthlyTrend[];
+  statusBreakdown: StatusBreakdown[];
+}

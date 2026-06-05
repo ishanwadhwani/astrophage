@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
 import {
   DashboardData,
   DashboardInvoice,
   DashboardBill,
+  DashboardCharts,
 } from "@/types/dashboard";
-import { fetchDashboard } from "@/lib/dashboard";
+import { fetchDashboard, fetchDashboardCharts } from "@/lib/dashboard";
 import { getUser } from "@/lib/auth";
 import { useBusiness } from "@/hooks/useBusiness";
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
@@ -282,7 +285,7 @@ function AlertBanner({
       className={`flex items-start gap-4 border rounded-2xl px-5 py-4 ${styles.wrap}`}
     >
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${styles.icon}`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${styles.icon}`}
       >
         <svg
           width="14"
@@ -305,7 +308,7 @@ function AlertBanner({
       </div>
       <Link
         href={href}
-        className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg hover:opacity-90 transition ${styles.btn}`}
+        className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg hover:opacity-90 transition ${styles.btn}`}
       >
         View
       </Link>
@@ -313,20 +316,44 @@ function AlertBanner({
   );
 }
 
+const RevenueChart = dynamic(() => import("./_components/RevenueChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[220px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  ),
+});
+
+const StatusChart = dynamic(() => import("./_components/StatusChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[220px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  ),
+});
+
 export default function DashboardPage() {
   const user = getUser();
   const { businessId } = useBusiness();
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [charts, setCharts] = useState<DashboardCharts | null>(null);
 
   useEffect(() => {
     if (!businessId) return;
 
     const fetchData = async () => {
       try {
-        const result = await fetchDashboard(businessId);
-        setData(result);
+        const [result, chartResult] = await Promise.allSettled([
+          fetchDashboard(businessId),
+          fetchDashboardCharts(businessId),
+        ]);
+        if (result.status === "fulfilled") setData(result.value);
+        if (chartResult.status === "fulfilled") setCharts(chartResult.value);
+        // setData(result);
       } catch {
       } finally {
         setLoading(false);
@@ -378,7 +405,7 @@ export default function DashboardPage() {
       {/* reminder message to fill up the details */}
       {isSetupIncomplete && (
         <div className="flex items-center gap-4 bg-primary/8 border border-primary/20 rounded-2xl px-5 py-4">
-          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <svg
               width="14"
               height="14"
@@ -405,7 +432,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/settings"
-            className="flex-shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition"
+            className="shrink-0 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition"
           >
             Complete setup →
           </Link>
@@ -449,6 +476,40 @@ export default function DashboardPage() {
           accent={stats.paidThisMonth > 0 ? "success" : "default"}
         />
       </div>
+
+      {charts && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Revenue trend */}
+          <div className="lg:col-span-2 bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">
+                Revenue Trend
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Invoiced vs collected vs spent — last 6 months
+              </p>
+            </div>
+            <div className="px-4 py-4">
+              <RevenueChart data={charts.monthlyTrend} />
+            </div>
+          </div>
+
+          {/* Status breakdown */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">
+                Invoice Breakdown
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                By status — all time
+              </p>
+            </div>
+            <div className="px-4 py-2">
+              <StatusChart data={charts.statusBreakdown} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alert banners */}
       {overdueInvoices.length > 0 && (

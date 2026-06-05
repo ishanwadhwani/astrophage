@@ -3,13 +3,25 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useForm, Controller } from "react-hook-form";
+import { Send } from 'lucide-react';
 
 import { Invoice, Payment, PaymentMode } from "@/types/invoice";
 import { fetchInvoice, updateInvoiceStatus } from "@/lib/invoices";
 import { recordPayment } from "@/lib/invoices";
 import { PAYMENT_MODES } from "@/constants/invoice-options";
-import InvoiceDownloadButton from "@/components/shared/InvoiceDownloadButton";
+const InvoiceDownloadButton = dynamic(
+  () => import("@/components/shared/InvoiceDownloadButton"),
+  {
+    ssr: false,
+    loading: () => (
+      <button className="px-4 py-2 border border-border text-sm rounded-lg opacity-50">
+        Loading PDF...
+      </button>
+    ),
+  },
+);
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -229,19 +241,7 @@ export default function InvoiceDetailPage() {
             onClick={() => setSendModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22,2 15,22 11,13 2,9" />
-            </svg>
+            <Send className="w-4 h-4" />
             Send Email
           </button>
 
