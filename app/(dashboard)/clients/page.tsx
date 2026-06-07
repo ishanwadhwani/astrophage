@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { Download, SquarePlus, UserPlus, Plus } from "lucide-react";
+import { Download, UserPlus } from "lucide-react";
 
 import { Client, CreateClientPayload } from "@/types/client";
 import {
@@ -203,14 +203,16 @@ export default function ClientsPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* Add export button */}
-          <button
-            onClick={handleExportClients}
-            disabled={clients.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          <PermissionGate permission="report:export">
+            <button
+              onClick={handleExportClients}
+              disabled={clients.length === 0}
+              className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </PermissionGate>
           {/* Add client button */}
           <PermissionGate permission="client:create">
             <div
@@ -290,18 +292,22 @@ export default function ClientsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-3">
-                      <button
-                        onClick={() => handleEditClick(client)}
-                        className="text-xs font-medium text-primary hover:text-primary/80 transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(client.id)}
-                        className="text-xs text-destructive hover:text-destructive/70 transition"
-                      >
-                        Delete
-                      </button>
+                      <PermissionGate permission="client:edit">
+                        <button
+                          onClick={() => handleEditClick(client)}
+                          className="text-xs font-medium text-primary hover:text-primary/80 transition"
+                        >
+                          Edit
+                        </button>
+                      </PermissionGate>
+                      <PermissionGate permission="client:delete">
+                        <button
+                          onClick={() => handleDelete(client.id)}
+                          className="text-xs text-destructive hover:text-destructive/70 transition"
+                        >
+                          Delete
+                        </button>
+                      </PermissionGate>
                     </div>
                   </td>
                 </tr>

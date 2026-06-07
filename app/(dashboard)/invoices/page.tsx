@@ -3,13 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 import { Invoice, InvoiceStatus, RecurringInvoice } from "@/types/invoice";
 import {
   fetchInvoices,
   deleteInvoice,
   fetchRecurringInvoices,
-  // createRecurringInvoice,
   toggleRecurringInvoice,
   deleteRecurringInvoice,
   bulkDeleteInvoices,
@@ -26,6 +26,7 @@ import InvoiceExportButton, {
   RecurringInvoiceExportButton,
 } from "./_components/ExportButton";
 import { useToast } from "@/components/ui/Toast";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 export default function InvoicesPage() {
   const user = getUser();
@@ -193,20 +194,24 @@ export default function InvoicesPage() {
         </div>
         <div className="flex items-center gap-2">
           {pageTab === "invoices" ? (
-            <InvoiceExportButton invoices={filtered} label="Export" />
+            <PermissionGate permission="report:export">
+              <InvoiceExportButton invoices={filtered} label="Export" />
+            </PermissionGate>
           ) : (
             <RecurringInvoiceExportButton items={recurring} label="Export" />
           )}{" "}
-          <button
-            onClick={() =>
-              pageTab === "invoices"
-                ? router.push("/invoices/create")
-                : setRecurringModal(true)
-            }
-            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
-          >
-            {pageTab === "invoices" ? "New Invoice" : "Add Recurring"}
-          </button>
+          <PermissionGate permission="invoice:create">
+            <button
+              onClick={() =>
+                pageTab === "invoices"
+                  ? router.push("/invoices/create")
+                  : setRecurringModal(true)
+              }
+              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+            >
+              {pageTab === "invoices" ? "New Invoice" : "Add Recurring"}
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -262,16 +267,18 @@ export default function InvoicesPage() {
         ))}
       </div>
 
-      <button
-        onClick={() =>
-          pageTab === "invoices"
-            ? router.push("/invoices/create")
-            : setRecurringModal(true)
-        }
-        className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
-      >
-        {pageTab === "invoices" ? "New invoice" : "Add Recurring"}
-      </button>
+      <PermissionGate permission="invoice:create">
+        <button
+          onClick={() =>
+            pageTab === "invoices"
+              ? router.push("/invoices/create")
+              : setRecurringModal(true)
+          }
+          className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+        >
+          {pageTab === "invoices" ? "New invoice" : "Add Recurring"}
+        </button>
+      </PermissionGate>
 
       <InvoiceFilters
         search={search}
@@ -286,36 +293,29 @@ export default function InvoicesPage() {
       />
 
       {selected.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
-          <p className="text-sm font-semibold text-foreground">
-            {selected.size} invoice{selected.size !== 1 ? "s" : ""} selected
-          </p>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-3 mb-4 bg-primary/5 border border-primary/20 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="text-sm text-foreground">
+            <span className="font-bold text-primary">{selected.size}</span>{" "}
+            invoice{selected.size !== 1 ? "s" : ""} selected
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSelected(new Set())}
-              className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+              className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Clear
+              Clear selection
             </button>
-            <button
-              onClick={handleBulkDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-lg hover:bg-destructive/90 transition"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+
+            <PermissionGate permission="invoice:delete">
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 bg-background border border-destructive/30 text-destructive px-4 py-2 rounded-lg text-sm font-semibold hover:bg-destructive/10 hover:border-destructive/50 shadow-sm transition-all active:scale-[0.98]"
               >
-                <polyline points="3,6 5,6 21,6" />
-                <path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6" />
-              </svg>
-              Delete {selected.size}
-            </button>
+                <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                Delete {selected.size}
+              </button>
+            </PermissionGate>
           </div>
         </div>
       )}

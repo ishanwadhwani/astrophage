@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { Download } from "lucide-react";
+
 import { Vendor, Bill, RecurringBill } from "@/types/vendor";
 import {
   fetchVendors,
@@ -22,6 +24,7 @@ import RecurringBillTable from "./_components/RecurringBillTable";
 import AddRecurringBillModal from "./_components/AddRecurringBillModal";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { exportToCSV, fmtCSVDate, fmtCSVAmount } from "@/lib/csv";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 type TabType = "Vendors" | "Bills" | "Recurring";
 
@@ -211,40 +214,39 @@ export default function VendorsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <PermissionGate permission="report:export">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7,10 12,15 17,10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Export
-          </button>
-          <button
-            onClick={() => {
-              if (tab === "Vendors") setVendorModalOpen(true);
-              if (tab === "Bills") setBillModalOpen(true);
-              if (tab === "Recurring") setRecurringModalOpen(true);
-            }}
-            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+          </PermissionGate>
+          <PermissionGate
+            permission={
+              tab === "Vendors"
+                ? "vendor:create"
+                : tab === "Bills"
+                  ? "bill:create"
+                  : "bill:create"
+            }
           >
-            {tab === "Vendors"
-              ? "Add Vendor"
-              : tab === "Bills"
-                ? "Add Bill"
-                : "Add Recurring Bill"}
-          </button>
+            <button
+              onClick={() => {
+                if (tab === "Vendors") setVendorModalOpen(true);
+                if (tab === "Bills") setBillModalOpen(true);
+                if (tab === "Recurring") setRecurringModalOpen(true);
+              }}
+              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+            >
+              {tab === "Vendors"
+                ? "Add Vendor"
+                : tab === "Bills"
+                  ? "Add Bill"
+                  : "Add Recurring Bill"}
+            </button>
+          </PermissionGate>
         </div>
       </div>
 

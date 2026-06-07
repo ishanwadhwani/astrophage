@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Eye, Trash2 } from "lucide-react";
+
 import { Invoice } from "@/types/invoice";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 const statusStyles: Record<string, string> = {
   DRAFT: "bg-status-draft text-status-draft-foreground",
@@ -151,19 +154,23 @@ export default function InvoiceTable({
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right opacity-0 group-hover:opacity-100 transition">
-                  <div className="flex items-center justify-end gap-3">
+                  <div className="flex items-center justify-end gap-2">
                     <Link
                       href={`/invoices/${invoice.id}`}
-                      className="text-xs font-medium text-primary hover:text-primary/80"
+                      title="View invoice"
+                      className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
                     >
-                      View
+                      <Eye className="w-4 h-4" />
                     </Link>
-                    <button
-                      onClick={() => onDelete(invoice.id)}
-                      className="text-xs text-destructive hover:text-destructive/70"
-                    >
-                      Delete
-                    </button>
+                    <PermissionGate permission="invoice:delete">
+                      <button
+                        onClick={() => onDelete(invoice.id)}
+                        title="Delete invoice"
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </PermissionGate>
                   </div>
                 </td>
               </tr>

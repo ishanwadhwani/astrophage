@@ -9,6 +9,8 @@ import { fetchGSTReport } from "@/lib/reports";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { markInvoiceGSTFiled } from "@/lib/invoices";
+import PermissionGate from "@/components/ui/PermissionGate";
+import { Download, ArrowDownUp } from "lucide-react";
 
 const fmt = (n: number) =>
   "₹" +
@@ -310,32 +312,34 @@ export default function ReportsPage() {
               </span>
             </div>
           ) : (
-            <button
-              onClick={async () => {
-                try {
-                  await markInvoiceGSTFiled(row.id);
-                  setReport((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          invoices: prev.invoices.map((i) =>
-                            i.id === row.id
-                              ? {
-                                  ...i,
-                                  filingStatus: "FILED" as const,
-                                  gstFilingDate: new Date().toISOString(),
-                                }
-                              : i,
-                          ),
-                        }
-                      : prev,
-                  );
-                } catch {}
-              }}
-              className="px-2 py-1 rounded-full text-xs font-semibold bg-status-pending text-status-pending-foreground hover:opacity-80 transition whitespace-nowrap cursor-pointer"
-            >
-              Mark Filed
-            </button>
+            <PermissionGate permission="report:gst_file">
+              <button
+                onClick={async () => {
+                  try {
+                    await markInvoiceGSTFiled(row.id);
+                    setReport((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            invoices: prev.invoices.map((i) =>
+                              i.id === row.id
+                                ? {
+                                    ...i,
+                                    filingStatus: "FILED" as const,
+                                    gstFilingDate: new Date().toISOString(),
+                                  }
+                                : i,
+                            ),
+                          }
+                        : prev,
+                    );
+                  } catch {}
+                }}
+                className="px-2 py-1 rounded-full text-xs font-semibold bg-status-pending text-status-pending-foreground hover:opacity-80 transition whitespace-nowrap cursor-pointer"
+              >
+                Mark Filed
+              </button>
+            </PermissionGate>
           ),
       },
     ],
@@ -343,207 +347,186 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">GST Report</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Summary of all GST invoices for filing
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          {PRESETS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => handlePreset(p.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                preset === p.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+    <PermissionGate
+      permission="report:view"
+      fallback={
+        <div className="text-center py-16 text-muted-foreground">
+          You don&apos;t have access to reports.
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">GST Report</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Summary of all GST invoices for filing
+          </p>
         </div>
 
-        <div className="flex items-end gap-3 flex-wrap">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-              From
-            </label>
-            <input
-              type="date"
-              value={from}
-              max={today}
-              onChange={(e) => {
-                setFrom(e.target.value);
-                setPreset("");
-              }}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-              To
-            </label>
-            <input
-              type="date"
-              value={to}
-              max={today}
-              onChange={(e) => {
-                setTo(e.target.value);
-                setPreset("");
-              }}
-              className={inputClass}
-            />
-          </div>
-          <button
-            onClick={handleFetch}
-            disabled={loading || !from || !to}
-            className="px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all"
-          >
-            {loading ? "Generating..." : "Generate Report"}
-          </button>
-        </div>
-      </div>
-
-      {/* Loading */}
-      {loading && <LoadingState page="default" />}
-
-      {/* Report */}
-      {!loading && fetched && report && (
-        <>
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                label: "Taxable Value",
-                value: fmt(report.summary.totalTaxableValue),
-              },
-              { label: "Total IGST", value: fmt(report.summary.totalIGST) },
-              { label: "Total CGST", value: fmt(report.summary.totalCGST) },
-              { label: "Total SGST", value: fmt(report.summary.totalSGST) },
-              { label: "Total Tax", value: fmt(report.summary.totalTax) },
-              { label: "Grand Total", value: fmt(report.summary.grandTotal) },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="bg-card border border-border rounded-2xl p-5"
+        {/* Filters */}
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            {PRESETS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => handlePreset(p.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  preset === p.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  {s.label}
-                </p>
-                <p className="text-xl font-bold text-foreground">{s.value}</p>
-              </div>
+                {p.label}
+              </button>
             ))}
           </div>
 
-          {/* Table header with actions */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-              {(["ALL", "PENDING", "FILED"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilingFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    filingFilter === f
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {f === "ALL"
-                    ? `All (${report.invoices.length})`
-                    : f === "PENDING"
-                      ? `Unfiled (${report.invoices.filter((i) => i.filingStatus === "PENDING").length})`
-                      : `Filed (${report.invoices.filter((i) => i.filingStatus === "FILED").length})`}
-                </button>
-              ))}
-              <button
-                onClick={() =>
-                  setSortOrder((s) => (s === "desc" ? "asc" : "desc"))
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <polyline
-                    points={
-                      sortOrder === "desc"
-                        ? "19,12 12,19 5,12"
-                        : "5,12 12,5 19,12"
-                    }
-                  />
-                </svg>
-                {sortOrder === "desc" ? "Newest first" : "Oldest first"}
-              </button>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                From
+              </label>
+              <input
+                type="date"
+                value={from}
+                max={today}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPreset("");
+                }}
+                className={inputClass}
+              />
             </div>
-
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                To
+              </label>
+              <input
+                type="date"
+                value={to}
+                max={today}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPreset("");
+                }}
+                className={inputClass}
+              />
+            </div>
             <button
-              onClick={() => exportCSV(filtered, report.period)}
-              className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+              onClick={handleFetch}
+              disabled={loading || !from || !to}
+              className="px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7,10 12,15 17,10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export CSV
+              {loading ? "Generating..." : "Generate Report"}
             </button>
           </div>
-
-          {/* Table */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            {filtered.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground text-sm">
-                No invoices match this filter.
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                <DataTable
-                  columns={gstColumns}
-                  data={filtered}
-                  keyExtractor={(row) => row.id}
-                  emptyText="No invoices match this filter."
-                />
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Empty state before first fetch */}
-      {!loading && !fetched && (
-        <div className="bg-card border border-border rounded-2xl text-center py-16">
-          <p className="text-muted-foreground text-sm mb-1">
-            Select a date range and generate the report
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Only invoices marked as GST invoices will appear here
-          </p>
         </div>
-      )}
-    </div>
+
+        {/* Loading */}
+        {loading && <LoadingState page="default" />}
+
+        {/* Report */}
+        {!loading && fetched && report && (
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                {
+                  label: "Taxable Value",
+                  value: fmt(report.summary.totalTaxableValue),
+                },
+                { label: "Total IGST", value: fmt(report.summary.totalIGST) },
+                { label: "Total CGST", value: fmt(report.summary.totalCGST) },
+                { label: "Total SGST", value: fmt(report.summary.totalSGST) },
+                { label: "Total Tax", value: fmt(report.summary.totalTax) },
+                { label: "Grand Total", value: fmt(report.summary.grandTotal) },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="bg-card border border-border rounded-2xl p-5"
+                >
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    {s.label}
+                  </p>
+                  <p className="text-xl font-bold text-foreground">{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Table header with actions */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+                {(["ALL", "PENDING", "FILED"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilingFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      filingFilter === f
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f === "ALL"
+                      ? `All (${report.invoices.length})`
+                      : f === "PENDING"
+                        ? `Unfiled (${report.invoices.filter((i) => i.filingStatus === "PENDING").length})`
+                        : `Filed (${report.invoices.filter((i) => i.filingStatus === "FILED").length})`}
+                  </button>
+                ))}
+                <button
+                  onClick={() =>
+                    setSortOrder((s) => (s === "desc" ? "asc" : "desc"))
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                >
+                  <ArrowDownUp className="w-4 h-4" />
+                  {sortOrder === "desc" ? "Newest first" : "Oldest first"}
+                </button>
+              </div>
+              <PermissionGate permission="report:export">
+                <button
+                  onClick={() => exportCSV(filtered, report.period)}
+                  className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </button>
+              </PermissionGate>
+            </div>
+
+            {/* Table */}
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              {filtered.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground text-sm">
+                  No invoices match this filter.
+                </div>
+              ) : (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <DataTable
+                    columns={gstColumns}
+                    data={filtered}
+                    keyExtractor={(row) => row.id}
+                    emptyText="No invoices match this filter."
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Empty state before first fetch */}
+        {!loading && !fetched && (
+          <div className="bg-card border border-border rounded-2xl text-center py-16">
+            <p className="text-muted-foreground text-sm mb-1">
+              Select a date range and generate the report
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Only invoices marked as GST invoices will appear here
+            </p>
+          </div>
+        )}
+      </div>
+    </PermissionGate>
   );
 }

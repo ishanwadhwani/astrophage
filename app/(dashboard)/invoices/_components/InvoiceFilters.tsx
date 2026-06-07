@@ -98,20 +98,24 @@ export default function InvoiceFilters({
 
       {/* Status tabs + result count */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 bg-muted rounded-xl p-1 flex-wrap">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => onStatusChange(tab.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                status === tab.value
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl w-fit border border-border/50 overflow-x-auto hide-scrollbar">
+          {STATUS_TABS.map((tab) => {
+            const isActive = status === tab.value;
+
+            return (
+              <button
+                key={tab.value}
+                onClick={() => onStatusChange(tab.value)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  isActive
+                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <p className="text-xs text-muted-foreground shrink-0">

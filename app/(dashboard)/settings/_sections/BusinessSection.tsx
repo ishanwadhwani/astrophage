@@ -7,6 +7,7 @@ import { fetchBusiness, updateBusiness } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
 import { STATES } from "@/constants/invoice-options";
 import { LoadingState } from "@/components/ui/LoadingState";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -159,140 +160,150 @@ export default function BusinessSection() {
   if (loading) return <LoadingState page="settings" />;
 
   return (
-    <SectionCard
-      title="Business Profile"
-      description="Your business identity shown on invoices — name, GSTIN, PAN, and address."
+    <PermissionGate
+      permission="settings:edit"
+      fallback={<p className="text-sm text-muted-foreground">Read only.</p>}
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <label className={labelBase}>
-              Business Name <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Nullpalette Private Limited"
-              {...register("name", { required: "Business name is required" })}
-              className={errors.name ? inputError : inputNormal}
-            />
-            <FieldError message={errors.name?.message} />
+      <SectionCard
+        title="Business Profile"
+        description="Your business identity shown on invoices — name, GSTIN, PAN, and address."
+      >
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className={labelBase}>
+                Business Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Nullpalette Private Limited"
+                {...register("name", { required: "Business name is required" })}
+                className={errors.name ? inputError : inputNormal}
+              />
+              <FieldError message={errors.name?.message} />
+            </div>
+            <div>
+              <label className={labelBase}>GSTIN</label>
+              <input
+                type="text"
+                placeholder="09AAHCN9733B1ZC"
+                {...register("gstin")}
+                className={inputNormal}
+              />
+            </div>
+            <div>
+              <label className={labelBase}>PAN</label>
+              <input
+                type="text"
+                placeholder="AAHCN9733B"
+                {...register("pan")}
+                className={inputNormal}
+              />
+            </div>
+            <div>
+              <label className={labelBase}>Email</label>
+              <input
+                type="email"
+                placeholder="billing@company.com"
+                {...register("email")}
+                className={inputNormal}
+              />
+            </div>
+            <div>
+              <label className={labelBase}>Business Contact Email</label>
+              <input
+                type="email"
+                placeholder="invoices@company.com"
+                {...register("email")}
+                className={inputNormal}
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                This appears on invoices and is used as the reply-to address
+                when emailing clients. This is <strong>not</strong> your login
+                email.
+              </p>
+            </div>
+            <div>
+              <label className={labelBase}>Phone</label>
+              <input
+                type="tel"
+                placeholder="+91 98765 43210"
+                {...register("phone")}
+                className={inputNormal}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelBase}>UPI ID</label>
+              <input
+                type="text"
+                placeholder="yourname@upi or 9876543210@paytm"
+                {...register("upiId")}
+                className={inputNormal}
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Added to invoices as a QR code — clients scan to pay instantly
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelBase}>Street Address</label>
+              <input
+                type="text"
+                placeholder="Building, Street"
+                {...register("address")}
+                className={inputNormal}
+              />
+            </div>
+            <div>
+              <label className={labelBase}>City</label>
+              <input
+                type="text"
+                placeholder="Lucknow"
+                {...register("city")}
+                className={inputNormal}
+              />
+            </div>
+            <div>
+              <label className={labelBase}>Pincode</label>
+              <input
+                type="text"
+                placeholder="226001"
+                {...register("pincode")}
+                className={inputNormal}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelBase}>
+                State <span className="text-destructive">*</span>
+              </label>
+              <Controller
+                name="state"
+                control={control}
+                rules={{ required: "State is required for GST calculation" }}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    className={errors.state ? inputError : inputNormal}
+                  >
+                    <option value="">Select state</option>
+                    {STATES.map((s) => (
+                      <option key={s.key} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+              <FieldError message={errors.state?.message} />
+            </div>
           </div>
-          <div>
-            <label className={labelBase}>GSTIN</label>
-            <input
-              type="text"
-              placeholder="09AAHCN9733B1ZC"
-              {...register("gstin")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
-            <label className={labelBase}>PAN</label>
-            <input
-              type="text"
-              placeholder="AAHCN9733B"
-              {...register("pan")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
-            <label className={labelBase}>Email</label>
-            <input
-              type="email"
-              placeholder="billing@company.com"
-              {...register("email")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
-            <label className={labelBase}>Business Contact Email</label>
-            <input
-              type="email"
-              placeholder="invoices@company.com"
-              {...register("email")}
-              className={inputNormal}
-            />
-            <p className="text-xs text-muted-foreground mt-1.5">
-              This appears on invoices and is used as the reply-to address when
-              emailing clients. This is <strong>not</strong> your login email.
-            </p>
-          </div>
-          <div>
-            <label className={labelBase}>Phone</label>
-            <input
-              type="tel"
-              placeholder="+91 98765 43210"
-              {...register("phone")}
-              className={inputNormal}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={labelBase}>UPI ID</label>
-            <input
-              type="text"
-              placeholder="yourname@upi or 9876543210@paytm"
-              {...register("upiId")}
-              className={inputNormal}
-            />
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Added to invoices as a QR code — clients scan to pay instantly
-            </p>
-          </div>
-          <div className="sm:col-span-2">
-            <label className={labelBase}>Street Address</label>
-            <input
-              type="text"
-              placeholder="Building, Street"
-              {...register("address")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
-            <label className={labelBase}>City</label>
-            <input
-              type="text"
-              placeholder="Lucknow"
-              {...register("city")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
-            <label className={labelBase}>Pincode</label>
-            <input
-              type="text"
-              placeholder="226001"
-              {...register("pincode")}
-              className={inputNormal}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={labelBase}>
-              State <span className="text-destructive">*</span>
-            </label>
-            <Controller
-              name="state"
-              control={control}
-              rules={{ required: "State is required for GST calculation" }}
-              render={({ field }) => (
-                <select
-                  {...field}
-                  className={errors.state ? inputError : inputNormal}
-                >
-                  <option value="">Select state</option>
-                  {STATES.map((s) => (
-                    <option key={s.key} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            <FieldError message={errors.state?.message} />
-          </div>
-        </div>
-        <SaveButton isSubmitting={isSubmitting} />
-      </form>
-      {toast && <Toast message={toast.message} type={toast.type} />}
-    </SectionCard>
+          <SaveButton isSubmitting={isSubmitting} />
+        </form>
+        {toast && <Toast message={toast.message} type={toast.type} />}
+      </SectionCard>
+    </PermissionGate>
   );
 }

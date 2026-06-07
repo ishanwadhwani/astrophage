@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useForm, Controller } from "react-hook-form";
-import { Send } from 'lucide-react';
+import { Send } from "lucide-react";
 
 import { Invoice, Payment, PaymentMode } from "@/types/invoice";
 import { fetchInvoice, updateInvoiceStatus } from "@/lib/invoices";
@@ -26,6 +26,7 @@ import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import SendInvoiceModal from "../_components/SendInvoiceModal";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 type RecordPaymentForm = {
   amount: number;
@@ -228,22 +229,26 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2">
           {/* Cancel Button */}
           {invoice.status !== "CANCELLED" && invoice.status !== "PAID" && (
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
-            >
-              Cancel Invoice
-            </button>
+            <PermissionGate permission="invoice:edit">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+              >
+                Cancel Invoice
+              </button>
+            </PermissionGate>
           )}
 
           {/* Email Button */}
-          <button
-            onClick={() => setSendModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
-          >
-            <Send className="w-4 h-4" />
-            Send Email
-          </button>
+          <PermissionGate permission="invoice:create">
+            <button
+              onClick={() => setSendModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+            >
+              <Send className="w-4 h-4" />
+              Send Email
+            </button>
+          </PermissionGate>
 
           {/* Reminder Button */}
           {invoice.status !== "PAID" &&
@@ -544,7 +549,7 @@ export default function InvoiceDetailPage() {
         </div>
 
         {/* Right column */}
-        <div className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-6 space-y-4">
+        <div className="w-full lg:w-80 shrink-0 lg:sticky lg:top-6 space-y-4">
           {/* Payment Summary */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border bg-muted/40">
@@ -634,103 +639,105 @@ export default function InvoiceDetailPage() {
           )}
 
           {/* Record Payment */}
-          {canRecordPayment && (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-border bg-muted/40">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Record Payment
-                </h3>
-              </div>
-              <form
-                onSubmit={handleSubmit(onRecordPayment)}
-                noValidate
-                className="p-5 space-y-3"
-              >
-                <div>
-                  <label className={labelBase}>
-                    Amount (₹) <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    {...register("amount", {
-                      required: "Amount is required",
-                      min: { value: 1, message: "Minimum ₹1" },
-                      valueAsNumber: true,
-                    })}
-                    className={errors.amount ? inputError : inputNormal}
-                  />
-                  {errors.amount && (
-                    <p className="text-xs text-destructive mt-1">
-                      {errors.amount.message}
-                    </p>
-                  )}
+          <PermissionGate permission="invoice:payment">
+            {canRecordPayment && (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-border bg-muted/40">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Record Payment
+                  </h3>
                 </div>
-
-                <div>
-                  <label className={labelBase}>
-                    Payment Mode <span className="text-destructive">*</span>
-                  </label>
-                  <Controller
-                    name="mode"
-                    control={control}
-                    rules={{ required: "Select payment mode" }}
-                    render={({ field }) => (
-                      <select {...field} className={inputNormal}>
-                        {PAYMENT_MODES.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelBase}>Reference No.</label>
-                  <input
-                    type="text"
-                    placeholder="UTR / transaction ID"
-                    {...register("referenceNumber")}
-                    className={inputNormal}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelBase}>Payment Date</label>
-                  <input
-                    type="date"
-                    {...register("paymentDate")}
-                    className={inputNormal}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelBase}>Notes</label>
-                  <input
-                    type="text"
-                    placeholder="Optional note"
-                    {...register("notes")}
-                    className={inputNormal}
-                  />
-                </div>
-
-                {serverError && (
-                  <p className="text-xs text-destructive">{serverError}</p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm shadow-primary/20"
+                <form
+                  onSubmit={handleSubmit(onRecordPayment)}
+                  noValidate
+                  className="p-5 space-y-3"
                 >
-                  {isSubmitting ? "Recording..." : "Record Payment"}
-                </button>
-              </form>
-            </div>
-          )}
+                  <div>
+                    <label className={labelBase}>
+                      Amount (₹) <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      {...register("amount", {
+                        required: "Amount is required",
+                        min: { value: 1, message: "Minimum ₹1" },
+                        valueAsNumber: true,
+                      })}
+                      className={errors.amount ? inputError : inputNormal}
+                    />
+                    {errors.amount && (
+                      <p className="text-xs text-destructive mt-1">
+                        {errors.amount.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className={labelBase}>
+                      Payment Mode <span className="text-destructive">*</span>
+                    </label>
+                    <Controller
+                      name="mode"
+                      control={control}
+                      rules={{ required: "Select payment mode" }}
+                      render={({ field }) => (
+                        <select {...field} className={inputNormal}>
+                          {PAYMENT_MODES.map((m) => (
+                            <option key={m.value} value={m.value}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelBase}>Reference No.</label>
+                    <input
+                      type="text"
+                      placeholder="UTR / transaction ID"
+                      {...register("referenceNumber")}
+                      className={inputNormal}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelBase}>Payment Date</label>
+                    <input
+                      type="date"
+                      {...register("paymentDate")}
+                      className={inputNormal}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelBase}>Notes</label>
+                    <input
+                      type="text"
+                      placeholder="Optional note"
+                      {...register("notes")}
+                      className={inputNormal}
+                    />
+                  </div>
+
+                  {serverError && (
+                    <p className="text-xs text-destructive">{serverError}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm shadow-primary/20"
+                  >
+                    {isSubmitting ? "Recording..." : "Record Payment"}
+                  </button>
+                </form>
+              </div>
+            )}
+          </PermissionGate>
 
           {/* Payment History */}
           {invoice.payments.length > 0 && (
@@ -760,7 +767,7 @@ export default function InvoiceDetailPage() {
                           </p>
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                      <span className="text-xs text-muted-foreground shrink-0">
                         {new Date(payment.paymentDate).toLocaleDateString(
                           "en-IN",
                           {

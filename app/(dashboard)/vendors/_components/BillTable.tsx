@@ -1,4 +1,5 @@
 import { Bill } from "@/types/vendor";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 const fmt = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
@@ -101,19 +102,23 @@ export default function BillTable({ bills, onPay, onDelete }: Props) {
               <td className="px-4 py-3">
                 <div className="flex items-center justify-end gap-3">
                   {bill.status !== "PAID" && bill.status !== "CANCELLED" && (
-                    <button
-                      onClick={() => onPay(bill)}
-                      className="text-xs font-semibold text-primary hover:text-primary/80 transition"
-                    >
-                      Pay
-                    </button>
+                    <PermissionGate permission="bill:payment">
+                      <button
+                        onClick={() => onPay(bill)}
+                        className="text-xs font-semibold text-primary hover:text-primary/80 transition"
+                      >
+                        Pay
+                      </button>
+                    </PermissionGate>
                   )}
-                  <button
-                    onClick={() => onDelete(bill.id)}
-                    className="text-xs text-destructive hover:text-destructive/70 transition"
-                  >
-                    Delete
-                  </button>
+                  <PermissionGate permission="bill:delete">
+                    <button
+                      onClick={() => onDelete(bill.id)}
+                      className="text-xs text-destructive hover:text-destructive/70 transition"
+                    >
+                      Delete
+                    </button>
+                  </PermissionGate>
                 </div>
               </td>
             </tr>

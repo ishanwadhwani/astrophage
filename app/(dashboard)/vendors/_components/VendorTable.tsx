@@ -1,5 +1,8 @@
 import Link from "next/link";
+
 import { Vendor } from "@/types/vendor";
+import { EmptyCell } from "@/components/ui/EmptyCell";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 interface Props {
   vendors: Vendor[];
@@ -42,24 +45,26 @@ export default function VendorTable({ vendors, onDelete }: Props) {
               </Link>
             </td>
             <td className="px-4 py-3 text-muted-foreground">
-              {vendor.phone ?? "—"}
+              {vendor.phone ?? <EmptyCell />}
             </td>
             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-              {vendor.gstin ?? "—"}
+              {vendor.gstin ?? <EmptyCell />}
             </td>
             <td className="px-4 py-3 text-muted-foreground">
-              {vendor.state ?? "—"}
+              {vendor.state ?? <EmptyCell />}
             </td>
             <td className="px-4 py-3 text-muted-foreground">
               {vendor._count?.bills ?? 0}
             </td>
             <td className="px-4 py-3 text-right">
+              <PermissionGate permission="vendor:delete">
               <button
                 onClick={() => onDelete(vendor.id)}
                 className="text-destructive hover:text-destructive/70 text-xs transition"
               >
                 Delete
               </button>
+              </PermissionGate>
             </td>
           </tr>
         ))}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Trash2, Check } from "lucide-react";
+import { Trash2, Check, HousePlus, CircleChevronDown } from "lucide-react";
 import {
   getAllBusinesses,
   getCurrentBusiness,
@@ -12,6 +12,7 @@ import {
 import { createBusiness, deleteBusiness } from "@/lib/business";
 import { BusinessSummary } from "@/types/auth";
 import { useToast } from "@/components/ui/Toast";
+import PermissionGate from "../ui/PermissionGate";
 
 type NewBizForm = { name: string };
 
@@ -73,7 +74,7 @@ export default function BusinessSwitcher() {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/60 hover:bg-muted transition group"
       >
-        <div className="w-6 h-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+        <div className="w-6 h-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-sm font-bold shrink-0">
           {current.name.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -86,19 +87,9 @@ export default function BusinessSwitcher() {
             </p>
           )}
         </div>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-        >
-          <polyline points="6,9 12,15 18,9" />
-        </svg>
+        <CircleChevronDown
+          className={`w-4 h-4 shrink-0 text-primary transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -145,44 +136,46 @@ export default function BusinessSwitcher() {
                   </div>
                   {biz.id === current.id && <Check className="h-4 w-4" />}
                   {biz.id !== current.id && (
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const confirmed = await confirm({
-                          title: "Delete Business",
-                          message:
-                            "This will permanently delete the business and all the data.",
-                          confirmText: "Delete",
-                          danger: true,
-                        });
-                        if (!confirmed) return;
-                        try {
-                          await deleteBusiness(biz.id);
-                          success("Business deleted");
-                          const user = getUser();
-                          if (user) {
-                            const updated = {
-                              ...user,
-                              businesses: user.businesses.filter(
-                                (b) => b.id !== biz.id,
-                              ),
-                            };
-                            localStorage.setItem(
-                              "user",
-                              JSON.stringify(updated),
-                            );
-                            window.location.reload();
+                    <PermissionGate permission="business:delete">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const confirmed = await confirm({
+                            title: "Delete Business",
+                            message:
+                              "This will permanently delete the business and all the data.",
+                            confirmText: "Delete",
+                            danger: true,
+                          });
+                          if (!confirmed) return;
+                          try {
+                            await deleteBusiness(biz.id);
+                            success("Business deleted");
+                            const user = getUser();
+                            if (user) {
+                              const updated = {
+                                ...user,
+                                businesses: user.businesses.filter(
+                                  (b) => b.id !== biz.id,
+                                ),
+                              };
+                              localStorage.setItem(
+                                "user",
+                                JSON.stringify(updated),
+                              );
+                              window.location.reload();
+                            }
+                          } catch {
+                            error("Failed to delete", "Please try again.");
                           }
-                        } catch {
-                          error("Failed to delete", "Please try again.");
-                        }
-                      }}
-                      className="group-hover/biz:opacity-100 transition p-0.5 cursor-pointer"
-                    >
-                      <span className="text-red-500 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </span>
-                    </button>
+                        }}
+                        className="group-hover/biz:opacity-100 transition p-0.5 cursor-pointer"
+                      >
+                        <span className="text-red-500 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </span>
+                      </button>
+                    </PermissionGate>
                   )}
                 </div>
               ))}
@@ -194,19 +187,7 @@ export default function BusinessSwitcher() {
                   onClick={() => setCreating(true)}
                   className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <HousePlus className="w-5 h-5" />
                   Add business
                 </button>
               ) : (

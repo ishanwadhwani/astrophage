@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { LoadingState } from "@/components/ui/LoadingState";
+import PermissionGate from "@/components/ui/PermissionGate";
 
 const BusinessSection = dynamic(() => import("./_sections/BusinessSection"), {
   loading: () => <LoadingState page="settings" />,
