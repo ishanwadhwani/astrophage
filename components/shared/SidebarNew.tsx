@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { logout } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 const BusinessSwitcher = dynamic(() => import("./BusinessSwitcher"), {
   ssr: false,
@@ -27,10 +28,11 @@ type StoredUser = {
   name?: string;
   business?: {
     name?: string;
+    role?: string;
   };
 } | null;
 
-const navItems = [
+const allNavItems = [
   {
     label: "Dashboard",
     href: "/dashboard",
@@ -79,21 +81,24 @@ export default function SidebarNew({ onClose }: SidebarProps) {
   useEffect(() => {
     const id = window.setTimeout(() => {
       const stored = localStorage.getItem("user");
-
-      if (!stored) {
-        setUser(null);
-        return;
-      }
-
+      if (!stored) return;
       try {
         setUser(JSON.parse(stored));
       } catch {
-        setUser(null);
+        // user stays null
       }
     }, 0);
 
     return () => window.clearTimeout(id);
   }, []);
+
+  const navItems = user
+    ? allNavItems.filter((item) => {
+        if (item.href === "/settings")
+          return can("settings:edit") || can("team:manage");
+        return true;
+      })
+    : allNavItems;
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -175,7 +180,7 @@ export default function SidebarNew({ onClose }: SidebarProps) {
             title="Sign out"
             className="shrink-0 text-muted-foreground transition hover:text-destructive"
           >
-            <LogOut className="w-4 h-4 "/>
+            <LogOut className="w-4 h-4 " />
           </button>
         </div>
       </div>

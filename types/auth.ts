@@ -17,7 +17,8 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
-  businessName: string;
+  businessName?: string;
+  inviteToken?: string;
 }
 
 export interface LoginPayload {

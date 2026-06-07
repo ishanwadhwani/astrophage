@@ -3,13 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginUser, saveAuth } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
+
+import { axiosInstance } from "@/lib/axiosInstance";
+import { loginUser, saveAuth, getUser } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -23,6 +29,52 @@ export default function LoginPage() {
     try {
       const data = await loginUser(form);
       saveAuth(data);
+
+      if (inviteToken) {
+        try {
+          // Fetch invite details so we know which business to switch to
+          const [inviteRes, acceptRes] = await Promise.all([
+            axiosInstance.get<{
+              businessName: string;
+              role: string;
+            }>(`/api/team/invite/${inviteToken}`),
+            axiosInstance.post<{ businessId: string }>(
+              `/api/team/accept/${inviteToken}`,
+            ),
+          ]);
+
+          const inviteDetails = inviteRes.data;
+          const { businessId } = acceptRes.data;
+
+          if (businessId) {
+            const currentUser = getUser();
+            if (currentUser) {
+              const invitedBusiness = {
+                id: businessId,
+                name: inviteDetails.businessName,
+                gstin: null as string | null,
+                role: inviteDetails.role,
+              };
+              const others = (currentUser.businesses ?? []).filter(
+                (b) => b.id !== businessId,
+              );
+              localStorage.setItem(
+                "user",
+                JSON.stringify({
+                  ...currentUser,
+                  business: invitedBusiness,
+                  businesses: [...others, invitedBusiness],
+                }),
+              );
+            }
+          }
+        } catch {
+          // If accept fails (already accepted, expired, etc.) continue to dashboard
+        }
+        window.location.href = "/dashboard";
+        return;
+      }
+
       router.push("/dashboard");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
@@ -87,7 +139,7 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-6 text-center">
           Don&apos;t have an account?{" "}
           <Link
-            href="/register"
+            href={inviteToken ? `/register?invite=${inviteToken}` : "/register"}
             className="text-gray-900 font-medium hover:underline"
           >
             Register

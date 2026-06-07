@@ -70,6 +70,6 @@ export const ROLE_PERMISSIONS: Record<MemberRole, Permission[]> = {
 export const can = (permission: Permission): boolean => {
   const business = getCurrentBusiness();
   if (!business) return false;
-  const role = business.role ?? "VIEWER";
+  const role = (business as { role?: MemberRole }).role ?? "OWNER";
   return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 };

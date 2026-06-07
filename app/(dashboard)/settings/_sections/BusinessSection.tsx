@@ -205,6 +205,19 @@ export default function BusinessSection() {
             />
           </div>
           <div>
+            <label className={labelBase}>Business Contact Email</label>
+            <input
+              type="email"
+              placeholder="invoices@company.com"
+              {...register("email")}
+              className={inputNormal}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              This appears on invoices and is used as the reply-to address when
+              emailing clients. This is <strong>not</strong> your login email.
+            </p>
+          </div>
+          <div>
             <label className={labelBase}>Phone</label>
             <input
               type="tel"

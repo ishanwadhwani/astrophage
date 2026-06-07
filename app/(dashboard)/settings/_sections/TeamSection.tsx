@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { TeamMember, MemberRole } from "@/types/auth";
 import PermissionGate from "@/components/ui/PermissionGate";
@@ -91,13 +91,12 @@ export default function TeamSection() {
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { isSubmitting },
   } = useForm<InviteForm>({
     defaultValues: { email: "", role: "VIEWER" },
   });
 
-  const selectedRole = watch("role");
+  const selectedRole = useWatch({ control, name: "role" });
 
   useEffect(() => {
     if (!businessId) return;

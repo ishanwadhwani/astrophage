@@ -19,12 +19,13 @@ export function middleware(request: NextRequest) {
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isProtectedPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
+  const isAcceptInvite  = pathname.startsWith("/accept-invite");
 
   if (!token && isProtectedPath) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (token && isPublicPath) {
+  if (token && isPublicPath && !isAcceptInvite) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
