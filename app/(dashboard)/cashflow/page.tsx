@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
 import { CashflowData } from "@/types/cashflow";
 import { fetchCashflow } from "@/lib/cashflow";
 import { getUser } from "@/lib/auth";
 import CashflowStats from "./_components/CashflowStats";
-import CashflowChart from "./_components/CashflowChart";
+
+const CashflowChart = dynamic(() => import("./_components/CashflowChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[300px] flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  ),
+});
 import CashflowTimeline from "./_components/CashflowTimeline";
 import { LoadingState } from "@/components/ui/LoadingState";
 
@@ -100,6 +110,9 @@ export default function CashflowPage() {
           <h2 className="text-sm font-semibold text-foreground">
             Daily Cashflow
           </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Solid = expected · striped = projected from recurring
+          </p>
         </div>
         <div className="px-6 py-5">
           {isEmpty ? (
@@ -118,7 +131,7 @@ export default function CashflowPage() {
               .
             </div>
           ) : (
-            <CashflowChart timeline={timeline} max={chartMax} />
+            <CashflowChart timeline={timeline} />
           )}
         </div>
       </div>

@@ -1,260 +1,239 @@
 "use client";
 
-import { useState } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Cell,
+} from "recharts";
 import { CashflowDay } from "@/types/cashflow";
 
 const fmt = (n: number) =>
-  "₹" +
-  n.toLocaleString("en-IN", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  n >= 100000
+    ? "₹" + (n / 100000).toFixed(1) + "L"
+    : n >= 1000
+      ? "₹" + (n / 1000).toFixed(0) + "K"
+      : "₹" + n;
 
 const fmtFull = (n: number) =>
-  "₹" +
-  n.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
 
-const dayLabel = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  });
+const dayLabel = (d: string) =>
+  new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
-// ─── Tooltip ─────────────────────────────────────────────
+const dateKey = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
 
-function Tooltip({ day, x, y }: { day: CashflowDay; x: number; y: number }) {
+// Tooltip
+type CustomTooltipPayloadItem = {
+  payload: {
+    raw: CashflowDay;
+  };
+};
+
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: CustomTooltipPayloadItem[];
+};
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+  if (!active || !payload?.length) return null;
+  const day: CashflowDay = payload[0].payload.raw;
+  const net =
+    day.expectedIn + day.projectedIn - (day.expectedOut + day.projectedOut);
+
   return (
-    <div
-      className="fixed z-50 bg-card border border-border rounded-xl shadow-lg p-3 pointer-events-none min-w-48"
-      style={{ left: x - 96, top: y - 130 }}
-    >
-      <p className="text-xs font-semibold text-foreground mb-2">
-        {dayLabel(day.date)}
-      </p>
+    <div className="bg-card border border-border rounded-xl shadow-lg p-3 text-sm min-w-52">
+      <p className="font-semibold text-foreground mb-2">{dayLabel(day.date)}</p>
 
       {day.expectedIn > 0 && (
-        <div className="mb-1.5">
-          <p className="text-xs text-muted-foreground mb-1">In</p>
-          {day.invoices.map((inv) => (
-            <div key={inv.id} className="flex justify-between gap-3 text-xs">
-              <span className="text-muted-foreground truncate">
-                #{inv.number} · {inv.clientName}
-              </span>
-              <span className="font-medium text-primary flex-shrink-0">
-                {fmt(inv.outstanding)}
-              </span>
-            </div>
-          ))}
+        <div className="flex justify-between gap-4 text-xs py-0.5">
+          <span className="text-muted-foreground">Expected in</span>
+          <span className="font-medium text-primary">
+            {fmtFull(day.expectedIn)}
+          </span>
+        </div>
+      )}
+      {day.projectedIn > 0 && (
+        <div className="flex justify-between gap-4 text-xs py-0.5">
+          <span className="text-muted-foreground">Projected in</span>
+          <span className="font-medium text-primary/60">
+            {fmtFull(day.projectedIn)}
+          </span>
+        </div>
+      )}
+      {day.expectedOut > 0 && (
+        <div className="flex justify-between gap-4 text-xs py-0.5">
+          <span className="text-muted-foreground">Expected out</span>
+          <span className="font-medium text-status-overdue-foreground">
+            {fmtFull(day.expectedOut)}
+          </span>
+        </div>
+      )}
+      {day.projectedOut > 0 && (
+        <div className="flex justify-between gap-4 text-xs py-0.5">
+          <span className="text-muted-foreground">Projected out</span>
+          <span className="font-medium text-status-overdue-foreground/60">
+            {fmtFull(day.projectedOut)}
+          </span>
         </div>
       )}
 
-      {day.expectedOut > 0 && (
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Out</p>
-          {day.bills.map((bill) => (
-            <div key={bill.id} className="flex justify-between gap-3 text-xs">
-              <span className="text-muted-foreground truncate">
-                {bill.vendorName}
-              </span>
-              <span className="font-medium text-status-overdue-foreground flex-shrink-0">
-                {fmt(bill.outstanding)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="flex justify-between gap-4 text-xs pt-2 mt-1 border-t border-border">
+        <span className="font-semibold text-foreground">Net</span>
+        <span
+          className={`font-bold ${net >= 0 ? "text-status-paid-foreground" : "text-status-overdue-foreground"}`}
+        >
+          {net >= 0 ? "+" : ""}
+          {fmtFull(net)}
+        </span>
+      </div>
     </div>
   );
-}
+};
 
-// ─── Chart ────────────────────────────────────────────────
+// Chart
 
 interface Props {
   timeline: CashflowDay[];
-  max: number;
 }
 
-export default function CashflowChart({ timeline, max }: Props) {
-  const [tooltip, setTooltip] = useState<{
-    day: CashflowDay;
-    x: number;
-    y: number;
-  } | null>(null);
+export default function CashflowChart({ timeline }: Props) {
+  const today = dateKey(new Date());
 
-  const today = new Date().toISOString().split("T")[0];
-
-  const BAR_W = 10;
-  const INNER_GAP = 2;
-  const GAP = 6;
-  const H = 160;
-  const PAD_LEFT = 68;
-  const PAD_TOP = 16;
-  const DAY_W = BAR_W * 2 + INNER_GAP + GAP;
-  const totalW = timeline.length * DAY_W;
-
-  const barH = (val: number) =>
-    max > 0 ? Math.max((val / max) * H, val > 0 ? 4 : 0) : 0;
+  //raw day for tooltip
+  const data = timeline.map((d) => ({
+    label: dayLabel(d.date),
+    expectedIn: d.expectedIn,
+    projectedIn: d.projectedIn,
+    expectedOut: d.expectedOut,
+    projectedOut: d.projectedOut,
+    isToday: d.date === today,
+    raw: d,
+  }));
 
   return (
-    <div className="space-y-3">
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-primary" />
-          Inflow (Receivables)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-status-overdue-foreground" />
-          Outflow (Bills)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-1.5 rounded-sm bg-primary/40" />
-          Today
-        </div>
-      </div>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart
+        data={data}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        barGap={2}
+      >
+        <defs>
+          <pattern
+            id="projIn"
+            patternUnits="userSpaceOnUse"
+            width="6"
+            height="6"
+            patternTransform="rotate(45)"
+          >
+            <rect width="6" height="6" fill="hsl(221 83% 53% / 0.1)" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="6"
+              stroke="hsl(221 83% 53% / 0.6)"
+              strokeWidth="2"
+            />
+          </pattern>
+          <pattern
+            id="projOut"
+            patternUnits="userSpaceOnUse"
+            width="6"
+            height="6"
+            patternTransform="rotate(45)"
+          >
+            <rect width="6" height="6" fill="hsl(0 72% 51% / 0.08)" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="6"
+              stroke="hsl(0 72% 51% / 0.5)"
+              strokeWidth="2"
+            />
+          </pattern>
+        </defs>
 
-      <div className="overflow-x-auto">
-        <svg
-          width={totalW + PAD_LEFT}
-          height={PAD_TOP + H + 36}
-          className="block"
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="hsl(var(--border))"
+          vertical={false}
+        />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          axisLine={false}
+          tickLine={false}
+          interval="preserveStartEnd"
+          minTickGap={20}
+        />
+        <YAxis
+          tickFormatter={fmt}
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
+        <Tooltip
+          content={<CustomTooltip />}
+          cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+        />
+        <Legend
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+        />
+
+        {/* Inflow stack: actual + projected */}
+        <Bar
+          dataKey="expectedIn"
+          stackId="in"
+          name="Expected In"
+          fill="hsl(221 83% 53%)"
+          radius={[0, 0, 0, 0]}
         >
-          {/* Y-axis gridlines */}
-          {[0.25, 0.5, 0.75, 1].map((frac) => {
-            const y = PAD_TOP + H - frac * H;
-            return (
-              <g key={frac}>
-                <line
-                  x1={PAD_LEFT}
-                  x2={totalW + PAD_LEFT}
-                  y1={y}
-                  y2={y}
-                  stroke="hsl(var(--border))"
-                  strokeWidth={0.5}
-                  strokeDasharray="4 4"
-                />
-                <text
-                  x={PAD_LEFT - 6}
-                  y={y + 3}
-                  textAnchor="end"
-                  fontSize={9}
-                  fill="hsl(var(--muted-foreground))"
-                >
-                  {fmt(max * frac)}
-                </text>
-              </g>
-            );
-          })}
+          {data.map((d, i) => (
+            <Cell
+              key={i}
+              fill={d.isToday ? "hsl(221 83% 45%)" : "hsl(221 83% 53%)"}
+            />
+          ))}
+        </Bar>
+        <Bar
+          dataKey="projectedIn"
+          stackId="in"
+          name="Projected In"
+          fill="url(#projIn)"
+          radius={[3, 3, 0, 0]}
+        />
 
-          {/* Baseline */}
-          <line
-            x1={PAD_LEFT}
-            x2={totalW + PAD_LEFT}
-            y1={PAD_TOP + H}
-            y2={PAD_TOP + H}
-            stroke="hsl(var(--border))"
-            strokeWidth={1}
-          />
-
-          {/* Bars */}
-          {timeline.map((day, i) => {
-            const dayX = PAD_LEFT + i * DAY_W;
-            const inBarH = barH(day.expectedIn);
-            const outBarH = barH(day.expectedOut);
-            const isToday = day.date === today;
-            const hasOverdue = day.invoices.some(
-              (inv) => inv.status === "OVERDUE",
-            );
-            const hasData = day.expectedIn > 0 || day.expectedOut > 0;
-
-            return (
-              <g key={day.date}>
-                {/* Today marker */}
-                {isToday && (
-                  <rect
-                    x={dayX}
-                    y={PAD_TOP}
-                    width={BAR_W * 2 + INNER_GAP}
-                    height={H}
-                    fill="hsl(var(--primary) / 0.05)"
-                    rx={2}
-                  />
-                )}
-
-                {/* Inflow bar */}
-                <rect
-                  x={dayX}
-                  y={PAD_TOP + H - inBarH}
-                  width={BAR_W}
-                  height={inBarH}
-                  rx={3}
-                  fill={
-                    hasOverdue
-                      ? "hsl(var(--status-overdue-foreground))"
-                      : isToday
-                        ? "hsl(var(--primary))"
-                        : "hsl(var(--primary) / 0.5)"
-                  }
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                  onMouseEnter={(e) => {
-                    if (!hasData) return;
-                    const r = e.currentTarget.getBoundingClientRect();
-                    setTooltip({ day, x: r.left + r.width / 2, y: r.top });
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                />
-
-                {/* Outflow bar */}
-                <rect
-                  x={dayX + BAR_W + INNER_GAP}
-                  y={PAD_TOP + H - outBarH}
-                  width={BAR_W}
-                  height={outBarH}
-                  rx={3}
-                  fill="hsl(var(--status-overdue-foreground) / 0.7)"
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                  onMouseEnter={(e) => {
-                    if (!hasData) return;
-                    const r = e.currentTarget.getBoundingClientRect();
-                    setTooltip({ day, x: r.left + r.width / 2, y: r.top });
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                />
-
-                {/* Today underline */}
-                {isToday && (
-                  <rect
-                    x={dayX}
-                    y={PAD_TOP + H + 6}
-                    width={BAR_W * 2 + INNER_GAP}
-                    height={3}
-                    rx={1.5}
-                    fill="hsl(var(--primary))"
-                  />
-                )}
-
-                {/* Date label every 5 days */}
-                {i % 5 === 0 && (
-                  <text
-                    x={dayX + (BAR_W * 2 + INNER_GAP) / 2}
-                    y={PAD_TOP + H + 22}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fill="hsl(var(--muted-foreground))"
-                  >
-                    {dayLabel(day.date)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-
-      {tooltip && <Tooltip day={tooltip.day} x={tooltip.x} y={tooltip.y} />}
-    </div>
+        {/* Outflow stack: actual + projected */}
+        <Bar
+          dataKey="expectedOut"
+          stackId="out"
+          name="Expected Out"
+          fill="hsl(0 72% 51%)"
+          radius={[0, 0, 0, 0]}
+        />
+        <Bar
+          dataKey="projectedOut"
+          stackId="out"
+          name="Projected Out"
+          fill="url(#projOut)"
+          radius={[3, 3, 0, 0]}
+        />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

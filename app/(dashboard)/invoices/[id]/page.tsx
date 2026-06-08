@@ -27,6 +27,7 @@ import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import SendInvoiceModal from "../_components/SendInvoiceModal";
 import PermissionGate from "@/components/ui/PermissionGate";
+import { CopyButton } from "@/components/ui/CopyButton";
 
 type RecordPaymentForm = {
   amount: number;
@@ -611,9 +612,12 @@ export default function InvoiceDetailPage() {
                   className="w-36 h-36 rounded-lg border border-border"
                 />
                 <div className="text-center">
-                  <p className="text-xs font-mono font-semibold text-foreground">
-                    {invoice.business.upiId}
-                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-xs font-mono font-semibold text-foreground">
+                      {invoice.business.upiId}
+                    </p>
+                    <CopyButton text={invoice.business.upiId!} />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Scan with any UPI app
                   </p>

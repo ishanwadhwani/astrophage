@@ -22,7 +22,11 @@ export default function DashboardShell({
       {sidebarOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            className={`fixed inset-0 z-50 lg:hidden transition-opacity duration-300 ${
+              sidebarOpen
+                ? "opacity-100 pointer-events-auto"
+                : "opacity-0 pointer-events-none"
+            }`}
             onClick={() => setSidebarOpen(false)}
           />
           <div className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden">
@@ -31,11 +35,11 @@ export default function DashboardShell({
         </>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted"
+            className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition"
             aria-label="Open sidebar"
           >
             <PanelLeftOpen className="w-5.5 h-5.5" />

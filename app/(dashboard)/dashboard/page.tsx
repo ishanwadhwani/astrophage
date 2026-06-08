@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { MessageSquareWarning } from "lucide-react";
 
 import {
   DashboardData,
@@ -15,6 +16,7 @@ import { getUser } from "@/lib/auth";
 import { useBusiness } from "@/hooks/useBusiness";
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 
 const statusStyles: Record<string, string> = {
   DRAFT: "bg-status-draft text-status-draft-foreground",
@@ -36,11 +38,15 @@ function StatCard({
   value,
   sub,
   accent = "default",
+  isCurrency = false,
+  rawValue,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent?: "default" | "danger" | "success" | "warning";
+  isCurrency?: boolean;
+  rawValue?: number;
 }) {
   const color = {
     default: "text-foreground",
@@ -54,7 +60,13 @@ function StatCard({
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
         {label}
       </p>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className={`text-2xl font-bold ${color}`}>
+        {isCurrency && rawValue !== undefined ? (
+          <AnimatedNumber value={rawValue} prefix="₹" decimals={2} />
+        ) : (
+          value
+        )}
+      </p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
@@ -287,20 +299,7 @@ function AlertBanner({
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${styles.icon}`}
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
+        <MessageSquareWarning className="w-4 h-5" />
       </div>
       <div className="flex-1">
         <p className={`text-sm font-semibold ${styles.text}`}>{message}</p>
@@ -444,35 +443,47 @@ export default function DashboardPage() {
         <StatCard
           label="Total Receivables"
           value={fmt(stats.totalReceivables)}
+          rawValue={stats.totalReceivables}
+          isCurrency
           sub="Across all pending invoices"
         />
         <StatCard
           label="Total Payables"
           value={fmt(stats.totalPayables)}
+          rawValue={stats.totalPayables}
+          isCurrency
           sub="Bills outstanding"
           accent={stats.totalPayables > 0 ? "warning" : "default"}
         />
         <StatCard
           label="Net Position"
           value={fmt(Math.abs(net))}
+          rawValue={net}
+          isCurrency
           sub={net >= 0 ? "Surplus" : "Deficit"}
           accent={net >= 0 ? "success" : "danger"}
         />
         <StatCard
           label="Overdue Receivables"
           value={fmt(stats.overdueAmount)}
+          rawValue={stats.overdueAmount}
+          isCurrency
           sub={`${overdueInvoices.length} invoice${overdueInvoices.length !== 1 ? "s" : ""} past due`}
           accent={stats.overdueAmount > 0 ? "danger" : "default"}
         />
         <StatCard
           label="Overdue Payables"
           value={fmt(stats.overduePayables)}
+          rawValue={stats.overduePayables}
+          isCurrency
           sub={`${overdueB.length} bill${overdueB.length !== 1 ? "s" : ""} past due`}
           accent={stats.overduePayables > 0 ? "danger" : "default"}
         />
         <StatCard
           label="Collected This Month"
           value={fmt(stats.paidThisMonth)}
+          rawValue={stats.paidThisMonth}
+          isCurrency
           accent={stats.paidThisMonth > 0 ? "success" : "default"}
         />
       </div>

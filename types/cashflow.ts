@@ -18,8 +18,12 @@ export interface CashflowDay {
   date: string;
   expectedIn: number;
   expectedOut: number;
+  projectedIn: number;
+  projectedOut: number;
   invoices: CashflowInvoice[];
   bills: CashflowBill[];
+  projectedInvoices: { clientName: string; amount: number }[];
+  projectedBills: { vendorName: string; amount: number }[];
 }
 
 export interface CashflowSummary {
