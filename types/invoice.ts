@@ -64,6 +64,7 @@ export interface Invoice {
   payments: Payment[];
   createdAt: string;
   upiId: string | null;
+  showPaymentQR: boolean;
 
   business: Business & { bankDetails: BankDetails | null };
   client: {
@@ -91,6 +92,7 @@ export interface CreateInvoicePayload {
   saveAsDraft?: boolean;
   templateType?: TemplateType;
   lineItems: LineItemInput[];
+  showPaymentQR: boolean;
 }
 
 export interface RecordPaymentPayload {

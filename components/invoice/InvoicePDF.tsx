@@ -553,7 +553,7 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
 
         <View style={s.paymentSection}>
           {/* UPI QR Code */}
-          {qrDataUrl && invoice.business.upiId && (
+          {qrDataUrl && invoice.business.upiId && invoice.showPaymentQR && (
             <View style={s.qrBox}>
               <Text
                 style={{

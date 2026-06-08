@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
+import { X } from "lucide-react";
 
 import { Client } from "@/types/client";
 import { LineItemInput, CreateInvoicePayload } from "@/types/invoice";
@@ -83,6 +84,7 @@ export default function CreateInvoicePage() {
       notes: "",
       isGstInvoice: false,
       lineItems: [DEFAULT_LINE_ITEM],
+      showPaymentQR: true,
     },
   });
 
@@ -96,6 +98,7 @@ export default function CreateInvoicePage() {
   const watchedNumber = useWatch({ control, name: "number" });
   const watchedDueDate = useWatch({ control, name: "dueDate" });
   const watchedPlaceOfSupply = useWatch({ control, name: "placeOfSupply" });
+  const watchedShowQR = useWatch({ control, name: "showPaymentQR" });
 
   useEffect(() => {
     if (!businessId) return;
@@ -538,9 +541,9 @@ export default function CreateInvoicePage() {
                       type="button"
                       onClick={() => remove(index)}
                       disabled={fields.length === 1}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-20 transition-all"
+                      className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-20 transition-all"
                     >
-                      ×
+                      <X className="w-7 h-7" />
                     </button>
                   </div>
                 </div>
@@ -642,7 +645,7 @@ export default function CreateInvoicePage() {
           </div>
         </div>
 
-        <div className="w-full lg:w-80 lg:sticky lg:top-6 flex-shrink-0">
+        <div className="flex flex-col w-full lg:w-80 lg:sticky lg:top-6 shrink-0 gap-4">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border bg-muted/40">
               <h3 className="text-sm font-semibold text-foreground">
@@ -744,6 +747,48 @@ export default function CreateInvoicePage() {
                 </div>
               )}
             </div>
+          </div>
+          {/* qr payment toggle */}
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-1">
+              Payment Options
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Control how clients can pay this invoice
+            </p>
+
+            <label className="flex items-center justify-between gap-3 p-3 bg-muted/40 rounded-xl cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Include UPI QR code
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {/* show hint based on whether business has UPI */}
+                  Adds a scannable QR to the PDF for instant payment
+                </p>
+              </div>
+              <Controller
+                name="showPaymentQR"
+                control={control}
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={field.value}
+                    onClick={() => field.onChange(!field.value)}
+                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                      field.value ? "bg-primary" : "bg-muted-foreground/30"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        field.value ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                )}
+              />
+            </label>
           </div>
         </div>
       </form>

@@ -11,6 +11,7 @@ import type { Invoice } from "@/types/invoice";
 interface Props {
   invoice: Invoice;
   onQRReady?: (dataUrl: string) => void;
+  showPaymentQR?: boolean;
 }
 
 export default function InvoiceDownloadButton({ invoice, onQRReady }: Props) {
@@ -18,6 +19,7 @@ export default function InvoiceDownloadButton({ invoice, onQRReady }: Props) {
 
   useEffect(() => {
     if (!invoice.business.upiId) return;
+    if (!invoice.business.upiId || !invoice.showPaymentQR) return;
 
     const generate = async () => {
       try {
@@ -36,6 +38,7 @@ export default function InvoiceDownloadButton({ invoice, onQRReady }: Props) {
     void generate();
   }, [
     invoice.business.upiId,
+    invoice.showPaymentQR,
     invoice.business.name,
     invoice.total,
     invoice.number,
