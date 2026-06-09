@@ -8,13 +8,14 @@ import { useBusiness } from "@/hooks/useBusiness";
 import { STATES } from "@/constants/invoice-options";
 import { LoadingState } from "@/components/ui/LoadingState";
 import PermissionGate from "@/components/ui/PermissionGate";
+import {Button} from "@/components/ui/Button"
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
 const inputNormal = `${inputBase} border-input`;
 const inputError = `${inputBase} border-destructive bg-destructive/5`;
 const labelBase =
-  "block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
+  "block text-xs font-semibold text-secondary uppercase tracking-wide mb-1.5";
 
 function SectionCard({
   title,
@@ -28,7 +29,7 @@ function SectionCard({
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="px-6 py-5 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="text-lg font-bold text-primary">{title}</h2>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
       </div>
       <div className="p-6">{children}</div>
@@ -39,13 +40,15 @@ function SectionCard({
 function SaveButton({ isSubmitting }: { isSubmitting: boolean }) {
   return (
     <div className="flex justify-end pt-4 border-t border-border">
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        className="px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm shadow-primary/20"
+        variant="custom"
+        size="lg"
+        className="hover:bg-primary hover:text-muted transition-all duration-500 cursor-pointer"
       >
         {isSubmitting ? "Saving..." : "Save changes"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -5,12 +5,30 @@ import Link from "next/link";
 
 import DataTable, { TableColumn } from "@/components/shared/DataTable";
 import { GSTReport, GSTInvoiceRow } from "@/types/gst";
-import { fetchGSTReport } from "@/lib/reports";
+import {
+  fetchGSTReport,
+  fetchVendorSpending,
+  VendorSpendingReport,
+  VendorSpendingRow,
+} from "@/lib/reports";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { markInvoiceGSTFiled } from "@/lib/invoices";
 import PermissionGate from "@/components/ui/PermissionGate";
-import { Download, ArrowDownUp } from "lucide-react";
+import {
+  Download,
+  ArrowDownUp,
+  ReceiptIndianRupee,
+  Sheet,
+  Calendar,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import { EmptyCell } from "@/components/ui/EmptyCell";
+import { exportToCSV } from "@/lib/csv";
+import { Button } from "@/components/ui/Button";
+
+type ReportType = "gst" | "vendor";
 
 const fmt = (n: number) =>
   "₹" +
@@ -75,7 +93,6 @@ const PRESETS = [
 ];
 
 // CSV Export
-
 const exportCSV = (
   invoices: GSTInvoiceRow[],
   period: { from: string; to: string },
@@ -129,6 +146,22 @@ const exportCSV = (
   URL.revokeObjectURL(url);
 };
 
+// CSV Vendor details export
+const exportVendorCSV = (report: VendorSpendingReport) => {
+  exportToCSV(
+    "vendor-spending",
+    ["Vendor", "GSTIN", "Bills", "Total Billed", "Paid", "Outstanding"],
+    report.vendors.map((v) => [
+      v.vendorName,
+      v.gstin ?? "",
+      v.billCount,
+      v.totalBilled.toFixed(2),
+      v.totalPaid.toFixed(2),
+      v.outstanding.toFixed(2),
+    ]),
+  );
+};
+
 export default function ReportsPage() {
   const user = getUser();
   const businessId = user?.business?.id;
@@ -146,6 +179,10 @@ export default function ReportsPage() {
     "ALL",
   );
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [reportType, setReportType] = useState<ReportType>("gst");
+  const [vendorReport, setVendorReport] = useState<VendorSpendingReport | null>(
+    null,
+  );
 
   const handlePreset = (value: string) => {
     setPreset(value);
@@ -158,8 +195,13 @@ export default function ReportsPage() {
     if (!businessId) return;
     setLoading(true);
     try {
-      const data = await fetchGSTReport(businessId, from, to);
-      setReport(data);
+      if (reportType === "gst") {
+        const data = await fetchGSTReport(businessId, from, to);
+        setReport(data);
+      } else {
+        const data = await fetchVendorSpending(businessId, from, to);
+        setVendorReport(data);
+      }
       setFetched(true);
     } catch {
     } finally {
@@ -183,6 +225,81 @@ export default function ReportsPage() {
   const inputClass =
     "px-3 py-2 bg-card border border-input rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all";
 
+  // VENDORS columns
+  const vendorColumns = useMemo<TableColumn<VendorSpendingRow>[]>(
+    () => [
+      {
+        key: "vendorName",
+        header: "Vendor",
+        render: (row) => (
+          <Link
+            href={`/vendors/${row.vendorId}`}
+            className="font-semibold text-foreground hover:text-primary transition"
+          >
+            {row.vendorName}
+          </Link>
+        ),
+      },
+      {
+        key: "gstin",
+        header: "GSTIN",
+        render: (row) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.gstin ?? <EmptyCell />}
+          </span>
+        ),
+      },
+      {
+        key: "billCount",
+        header: "Bills",
+        align: "right",
+        render: (row) => (
+          <span className="text-muted-foreground tabular-nums">
+            {row.billCount}
+          </span>
+        ),
+      },
+      {
+        key: "totalBilled",
+        header: "Total Billed",
+        align: "right",
+        render: (row) => (
+          <span className="font-medium text-foreground tabular-nums">
+            {fmt(row.totalBilled)}
+          </span>
+        ),
+      },
+      {
+        key: "totalPaid",
+        header: "Paid",
+        align: "right",
+        render: (row) => (
+          <span className="text-status-paid-foreground tabular-nums">
+            {fmt(row.totalPaid)}
+          </span>
+        ),
+      },
+      {
+        key: "outstanding",
+        header: "Outstanding",
+        align: "right",
+        render: (row) => (
+          <span
+            className={`font-semibold tabular-nums ${
+              row.outstanding > 0
+                ? "text-status-overdue-foreground"
+                : "text-status-paid-foreground"
+            }`}
+          >
+            {fmt(row.outstanding)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  // GST Columns
   const gstColumns = useMemo<TableColumn<GSTInvoiceRow>[]>(
     () => [
       {
@@ -256,7 +373,7 @@ export default function ReportsPage() {
           <span
             className={`tabular-nums ${row.igst > 0 ? "text-muted-foreground" : "text-border"}`}
           >
-            {row.igst > 0 ? fmt(row.igst) : "—"}
+            {row.igst > 0 ? fmt(row.igst) : <EmptyCell />}
           </span>
         ),
       },
@@ -346,6 +463,13 @@ export default function ReportsPage() {
     [setReport],
   );
 
+  const handleReportTypeChange = (type: ReportType) => {
+    setReportType(type);
+    setFetched(false);
+    setReport(null);
+    setVendorReport(null);
+  };
+
   return (
     <PermissionGate
       permission="report:view"
@@ -364,70 +488,140 @@ export default function ReportsPage() {
           </p>
         </div>
 
+        {/* tab switchers */}
+        <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
+          <button
+            onClick={() => handleReportTypeChange("gst")}
+            className={`flex gap-2 items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              reportType === "gst"
+                ? "bg-card text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sheet />
+            Invoice Report
+          </button>
+          <button
+            onClick={() => handleReportTypeChange("vendor")}
+            className={`flex gap-2 items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              reportType === "vendor"
+                ? "bg-card text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ReceiptIndianRupee />
+            Vendor Bills
+          </button>
+        </div>
+
         {/* Filters */}
-        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            {PRESETS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => handlePreset(p.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  preset === p.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+        <div className="bg-primary/80 border border-border rounded-2xl p-4 sm:p-5 shadow-sm space-y-5 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
+          {/* Quick filters */}
+          <div className="flex flex-col gap-2">
+            <p className="ml-1 text-primary-foreground font-normal">
+              Quick Filters
+            </p>
+            <div className="flex flex-wrap xl:flex-row items-center gap-2">
+              {PRESETS.map((p) => {
+                const isActive = preset === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    onClick={() => handlePreset(p.value)}
+                    // size="lg"
+                    className={`flex items-center gap-2 px-6 py-3.5 text-sm rounded-xl font-semibold transition-all duration-200 shadow-sm border ${
+                      isActive
+                        ? "bg-muted text-primary shadow-muted/10"
+                        : "bg-muted text-foreground hover:text-foreground/80 hover:bg-muted/90 border-transparent"
+                    }`}
+                  >
+                    <Calendar
+                      className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted-foreground/70"}`}
+                      strokeWidth={2.5}
+                    />
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex items-end gap-3 flex-wrap">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                From
-              </label>
-              <input
-                type="date"
-                value={from}
-                max={today}
-                onChange={(e) => {
-                  setFrom(e.target.value);
-                  setPreset("");
-                }}
-                className={inputClass}
-              />
+          {/* Date range selection */}
+          <div className="flex flex-col gap-2">
+            <p className="ml-1 text-primary-foreground font-normal">
+              Date Filters
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 bg-muted/40 border border-border p-1.5 rounded-2xl w-full sm:w-auto justify-between sm:justify-start">
+                <div className="relative flex items-center gap-2.5 px-3 py-1.5 bg-background border border-input/60 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all flex-1 sm:flex-initial">
+                  <Calendar
+                    className="w-4 h-4 text-muted-foreground shrink-0"
+                    strokeWidth={2}
+                  />
+                  <div className="flex flex-col text-left">
+                    <span className="text-[9px] font-bold text-muted-foreground/80 uppercase tracking-wider leading-tight">
+                      From
+                    </span>
+                    <input
+                      type="date"
+                      value={from}
+                      max={today}
+                      onChange={(e) => {
+                        setFrom(e.target.value);
+                        setPreset("");
+                      }}
+                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-6 w-full sm:w-24 cursor-pointer focus:ring-0 [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                    />
+                  </div>
+                </div>
+
+                <ArrowRight
+                  className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0"
+                  strokeWidth={2.5}
+                />
+
+                <div className="relative flex items-center gap-2.5 px-3 py-1.5 bg-background border border-input/60 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all flex-1 sm:flex-initial">
+                  <Calendar
+                    className="w-4 h-4 text-muted-foreground/70 shrink-0"
+                    strokeWidth={2}
+                  />
+                  <div className="flex flex-col text-left">
+                    <span className="text-[9px] font-bold text-muted-foreground/80 uppercase tracking-wider leading-tight">
+                      To
+                    </span>
+                    <input
+                      type="date"
+                      value={to}
+                      max={today}
+                      onChange={(e) => {
+                        setTo(e.target.value);
+                        setPreset("");
+                      }}
+                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-6 w-full sm:w-24 cursor-pointer focus:ring-0 [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleFetch}
+                disabled={!from || !to}
+                loading={loading}
+                size="lg"
+                variant="custom"
+                className="disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+              >
+                {loading ? "Generating..." : "Generate Report"}
+              </Button>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                To
-              </label>
-              <input
-                type="date"
-                value={to}
-                max={today}
-                onChange={(e) => {
-                  setTo(e.target.value);
-                  setPreset("");
-                }}
-                className={inputClass}
-              />
-            </div>
-            <button
-              onClick={handleFetch}
-              disabled={loading || !from || !to}
-              className="px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all"
-            >
-              {loading ? "Generating..." : "Generate Report"}
-            </button>
           </div>
         </div>
 
         {/* Loading */}
         {loading && <LoadingState page="default" />}
 
-        {/* Report */}
-        {!loading && fetched && report && (
+        {/* GST Report Results */}
+        {!loading && fetched && reportType === "gst" && report && (
           <>
             {/* Summary cards */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -515,6 +709,72 @@ export default function ReportsPage() {
           </>
         )}
 
+        {/* Vendor Results */}
+        {!loading && fetched && reportType === "vendor" && vendorReport && (
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Total Spent
+                </p>
+                <p className="text-xl font-bold text-foreground">
+                  {fmt(vendorReport.summary.totalSpent)}
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Total Paid
+                </p>
+                <p className="text-xl font-bold text-status-paid-foreground">
+                  {fmt(vendorReport.summary.totalPaid)}
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Outstanding
+                </p>
+                <p
+                  className={`text-xl font-bold ${
+                    vendorReport.summary.totalOutstanding > 0
+                      ? "text-status-overdue-foreground"
+                      : "text-foreground"
+                  }`}
+                >
+                  {fmt(vendorReport.summary.totalOutstanding)}
+                </p>
+              </div>
+            </div>
+
+            {/* Export action */}
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                {vendorReport.vendors.length} vendor
+                {vendorReport.vendors.length !== 1 ? "s" : ""} with activity in
+                this period
+              </p>
+              <button
+                onClick={() => exportVendorCSV(vendorReport)}
+                disabled={vendorReport.vendors.length === 0}
+                className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <DataTable
+                columns={vendorColumns}
+                data={vendorReport.vendors}
+                keyExtractor={(v) => v.vendorId}
+                emptyText="No vendor spending in this period."
+              />
+            </div>
+          </>
+        )}
+
         {/* Empty state before first fetch */}
         {!loading && !fetched && (
           <div className="bg-card border border-border rounded-2xl text-center py-16">
@@ -522,7 +782,9 @@ export default function ReportsPage() {
               Select a date range and generate the report
             </p>
             <p className="text-xs text-muted-foreground">
-              Only invoices marked as GST invoices will appear here
+              {reportType === "gst"
+                ? "Only invoices marked as GST invoices will appear here"
+                : "Shows spending grouped by vendor for the selected period"}
             </p>
           </div>
         )}
