@@ -16,6 +16,7 @@ export interface LineItem {
   description: string;
   hsnSac: string | null;
   quantity: number;
+  unit: string;
   rate: number;
   amount: number;
   gstRate: number;
@@ -31,6 +32,7 @@ export interface LineItemInput {
   quantity: number;
   rate: number;
   gstRate: number;
+  unit: string;
 }
 
 export interface Payment {
@@ -65,6 +67,7 @@ export interface Invoice {
   createdAt: string;
   upiId: string | null;
   showPaymentQR: boolean;
+  reverseCharge: boolean;
 
   business: Business & { bankDetails: BankDetails | null };
   client: {
@@ -93,6 +96,8 @@ export interface CreateInvoicePayload {
   templateType?: TemplateType;
   lineItems: LineItemInput[];
   showPaymentQR: boolean;
+  reverseCharge: boolean;
+  unit: string;
 }
 
 export interface RecordPaymentPayload {

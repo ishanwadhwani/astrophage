@@ -8,6 +8,7 @@ import {
 } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { numberToWords } from "@/lib/numberToWords";
+import { getStateCode } from "@/lib/gst";
 
 interface Props {
   invoice: Invoice;
@@ -181,6 +182,7 @@ const s = StyleSheet.create({
   colDesc: { flex: 3 },
   colHsn: { flex: 1.5 },
   colQty: { flex: 0.8, textAlign: "right" },
+  colUnit: { flex: 0.7, textAlign: "center" },
   colRate: { flex: 1.2, textAlign: "right" },
   colGst: { flex: 0.8, textAlign: "right" },
   colTax: { flex: 1.2, textAlign: "right" },
@@ -434,6 +436,12 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
             <Text style={s.dateValue}>{invoice.placeOfSupply}</Text>
           </View>
           <View style={s.dateBox}>
+            <Text style={s.dateLabel}>Reverse Charge</Text>
+            <Text style={s.dateValue}>
+              {invoice.reverseCharge ? "Yes" : "No"}
+            </Text>
+          </View>
+          <View style={s.dateBox}>
             <Text style={s.dateLabel}>Tax Type</Text>
             <Text style={s.dateValue}>{isIGST ? "IGST" : "CGST + SGST"}</Text>
           </View>
@@ -486,6 +494,7 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
             <Text style={[s.thText, s.colDesc]}>Description</Text>
             <Text style={[s.thText, s.colHsn]}>HSN/SAC</Text>
             <Text style={[s.thText, s.colQty]}>Qty</Text>
+            <Text style={[s.thText, s.colUnit]}>Unit</Text>
             <Text style={[s.thText, s.colRate]}>Rate</Text>
             <Text style={[s.thText, s.colGst]}>GST%</Text>
             <Text style={[s.thText, s.colTax]}>{taxColLabel}</Text>
@@ -501,6 +510,7 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
                 <Text style={[s.tdBold, s.colDesc]}>{item.description}</Text>
                 <Text style={[s.tdText, s.colHsn]}>{item.hsnSac ?? "—"}</Text>
                 <Text style={[s.tdText, s.colQty]}>{item.quantity}</Text>
+                <Text style={[s.tdText, s.colUnit]}>{item.unit}</Text>
                 <Text style={[s.tdText, s.colRate]}>{fmtAmt(item.rate)}</Text>
                 <Text style={[s.tdText, s.colGst]}>{item.gstRate}%</Text>
                 <Text style={[s.tdText, s.colTax]}>{fmtAmt(taxAmount)}</Text>

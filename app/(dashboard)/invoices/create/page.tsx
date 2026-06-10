@@ -4,7 +4,23 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
-import { X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  AlertTriangle,
+  AlertCircle,
+  PlusCircle,
+  Trash2,
+  FileText,
+  Package,
+  MessageSquare,
+  QrCode,
+  Receipt,
+  User,
+  Calendar,
+  Layers,
+  Hash,
+} from "lucide-react";
 
 import { Client } from "@/types/client";
 import { LineItemInput, CreateInvoicePayload } from "@/types/invoice";
@@ -12,8 +28,9 @@ import { fetchClients } from "@/lib/clients";
 import { createInvoice } from "@/lib/invoices";
 import { fetchBusiness, fetchNextInvoiceNumber } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
-// import { getUser } from "@/lib/auth";
+import { UQC_OPTIONS } from "@/lib/gst";
 import { GST_RATES, STATES } from "@/constants/invoice-options";
+import { can } from "@/lib/permissions";
 
 const DEFAULT_LINE_ITEM: LineItemInput = {
   description: "",
@@ -21,10 +38,11 @@ const DEFAULT_LINE_ITEM: LineItemInput = {
   quantity: 1,
   rate: 0,
   gstRate: 18,
+  unit: "NOS",
 };
 
 const inputBase =
-  "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
+  "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all duration-200 placeholder:text-muted-foreground/60";
 
 const inputNormal = `${inputBase} border-input`;
 const inputError = `${inputBase} border-destructive bg-destructive/5`;
@@ -35,19 +53,24 @@ const labelBase =
 function SectionCard({
   step,
   title,
+  icon,
   children,
 }: {
   step: string;
   title: string;
+  icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/40">
-        <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0">
+    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary shrink-0">
+          {icon}
+        </div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <span className="ml-auto text-xs font-bold text-muted-foreground/30 tabular-nums select-none">
           {step}
         </span>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
       <div className="p-6">{children}</div>
     </div>
@@ -59,14 +82,40 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-destructive mt-1.5">{message}</p>;
 }
 
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${
+        checked ? "bg-primary" : "bg-muted-foreground/30"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function CreateInvoicePage() {
   const router = useRouter();
   const isDraftRef = useRef(false);
-  //   const user = getUser();
   const { businessId } = useBusiness();
   const [clients, setClients] = useState<Client[]>([]);
   const [businessStateWarning, setBusinessStateWarning] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   const {
     register,
@@ -85,6 +134,8 @@ export default function CreateInvoicePage() {
       isGstInvoice: false,
       lineItems: [DEFAULT_LINE_ITEM],
       showPaymentQR: true,
+      reverseCharge: false,
+      unit: "NOS",
     },
   });
 
@@ -98,40 +149,42 @@ export default function CreateInvoicePage() {
   const watchedNumber = useWatch({ control, name: "number" });
   const watchedDueDate = useWatch({ control, name: "dueDate" });
   const watchedPlaceOfSupply = useWatch({ control, name: "placeOfSupply" });
-  const watchedShowQR = useWatch({ control, name: "showPaymentQR" });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!can("invoice:create")) {
+      router.replace("/invoices");
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!businessId) return;
-
     const fetchData = async () => {
       try {
-        const [clients, business, number] = await Promise.all([
+        const [clientList, business, number] = await Promise.all([
           fetchClients(businessId),
           fetchBusiness(businessId),
           fetchNextInvoiceNumber(businessId),
         ]);
-        setClients(clients);
+        setClients(clientList);
         setValue("number", number);
-
-        if (!business.state) {
-          setBusinessStateWarning(true);
-        }
+        if (!business.state) setBusinessStateWarning(true);
       } catch {}
     };
-
     void fetchData();
   }, [businessId, setValue]);
 
   useEffect(() => {
     if (!businessId) return;
-
     const fetchNumber = async () => {
       try {
         const number = await fetchNextInvoiceNumber(businessId);
         setValue("number", number);
       } catch {}
     };
-
     void fetchNumber();
   }, [businessId, setValue]);
 
@@ -160,12 +213,10 @@ export default function CreateInvoicePage() {
   const onSubmit = async (values: CreateInvoicePayload) => {
     setServerError("");
     try {
-      if (!businessId) {
-        throw new Error("Business ID is required");
-      }
+      if (!businessId) throw new Error("Business ID is required");
       const payload: CreateInvoicePayload = {
         ...values,
-        businessId: businessId,
+        businessId,
         saveAsDraft: isDraftRef.current,
         lineItems: values.lineItems.map((item) => ({
           ...item,
@@ -189,28 +240,39 @@ export default function CreateInvoicePage() {
   };
 
   return (
-    <div className="min-h-full">
+    <div
+      className={`min-h-full transition-opacity duration-500 ${
+        mounted ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      {/* ── Page header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Link
             href="/invoices"
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground hover:border-primary/30 transition-all duration-200"
           >
-            ←
+            <ArrowLeft className="w-4 h-4" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">New Invoice</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Fill in the details to generate an invoice
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">New Invoice</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Fill in the details to generate an invoice
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 pb-8">
+        {/* Action buttons */}
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-5 py-2 border border-border text-sm font-medium rounded-lg text-foreground hover:bg-muted transition"
+            className="px-4 py-2 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
           >
             Cancel
           </button>
@@ -221,7 +283,7 @@ export default function CreateInvoicePage() {
               isDraftRef.current = true;
               handleSubmit(onSubmit)();
             }}
-            className="px-5 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-50 transition"
+            className="px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-all duration-200"
           >
             Save as Draft
           </button>
@@ -232,7 +294,7 @@ export default function CreateInvoicePage() {
               isDraftRef.current = false;
               handleSubmit(onSubmit)();
             }}
-            className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm shadow-primary/20"
+            className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20 disabled:opacity-50 transition-all duration-200 shadow-sm shadow-primary/15"
           >
             {isSubmitting ? (
               <>
@@ -240,35 +302,44 @@ export default function CreateInvoicePage() {
                 Creating...
               </>
             ) : (
-              "Create Invoice →"
+              <>
+                Create Invoice
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </button>
         </div>
       </div>
 
+      {/* Business state warning */}
       {businessStateWarning && (
-        <div className="flex items-start gap-3 bg-status-pending/10 border border-status-pending-foreground/20 rounded-xl px-4 py-3">
-          <span className="text-status-pending-foreground text-sm">⚠</span>
+        <div className="flex items-start gap-3 bg-status-pending/10 border border-status-pending-foreground/20 rounded-xl px-4 py-3 mb-6">
+          <AlertTriangle className="w-4 h-4 text-status-pending-foreground mt-0.5 shrink-0" />
           <p className="text-sm text-status-pending-foreground">
             Your business state is not set. IGST will be applied to all
             invoices.{" "}
-            <Link href="/settings" className="font-semibold underline">
-              Fix in Settings →
+            <Link
+              href="/settings"
+              className="font-semibold underline underline-offset-2"
+            >
+              Fix in Settings
             </Link>
           </p>
         </div>
       )}
 
       <form
-        // id="invoice-form"
-        // onSubmit={handleSubmit(onSubmit)}
         onSubmit={(e) => e.preventDefault()}
         noValidate
         className="flex flex-col lg:flex-row gap-6 items-start"
       >
         <div className="flex-1 min-w-0 space-y-4">
-          {/* Invoice Details */}
-          <SectionCard step="1" title="Invoice Details">
+          {/* ── Section 1: Invoice Details ──────────────────────────── */}
+          <SectionCard
+            step="01"
+            title="Invoice Details"
+            icon={<FileText className="w-3.5 h-3.5" />}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelBase}>
@@ -316,9 +387,7 @@ export default function CreateInvoicePage() {
                 </label>
                 <input
                   type="date"
-                  {...register("dueDate", {
-                    required: "Due date is required",
-                  })}
+                  {...register("dueDate", { required: "Due date is required" })}
                   className={errors.dueDate ? inputError : inputNormal}
                 />
                 <FieldError message={errors.dueDate?.message} />
@@ -348,21 +417,22 @@ export default function CreateInvoicePage() {
                     </select>
                   )}
                 />
-                <div className="col-span-2 flex items-center mt-2 gap-2 p-3 bg-muted/60 rounded-xl">
-                  <span className="text-xs text-muted-foreground">
-                    Tax type will be:
-                  </span>
-                  <span className="text-xs font-bold text-foreground">
-                    {watchedPlaceOfSupply
-                      ? "Determined by business vs client state"
-                      : "Select place of supply first"}
-                  </span>
-                </div>
                 <FieldError message={errors.placeOfSupply?.message} />
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 p-3 bg-muted/60 rounded-xl">
+            {/* Tax type hint */}
+            <div className="mt-4 flex items-center gap-2 p-3 bg-muted/60 border border-border/50 rounded-xl text-xs">
+              <span className="text-muted-foreground">Tax type:</span>
+              <span className="font-semibold text-foreground">
+                {watchedPlaceOfSupply
+                  ? "Determined by business vs client state"
+                  : "Select place of supply first"}
+              </span>
+            </div>
+
+            {/* GST invoice toggle */}
+            <label className="mt-3 flex items-center gap-3 p-3 bg-muted/60 border border-border/50 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors duration-200">
               <Controller
                 name="isGstInvoice"
                 control={control}
@@ -376,28 +446,30 @@ export default function CreateInvoicePage() {
                   />
                 )}
               />
-              <div>
-                <label
-                  htmlFor="isGstInvoice"
-                  className="text-sm font-medium text-foreground cursor-pointer"
-                >
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">
                   Mark as GST Invoice
-                </label>
+                </p>
                 {watchedIsGst && selectedClient && !selectedClient.gstin && (
-                  <p className="text-xs text-status-pending-foreground mt-1">
-                    ⚠ This client has no GSTIN. Invoice will be created but may
+                  <p className="flex items-center gap-1.5 text-xs text-status-pending-foreground mt-1">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    This client has no GSTIN. Invoice will be created but may
                     not be valid for GST filing.
                   </p>
                 )}
               </div>
-            </div>
+            </label>
           </SectionCard>
 
-          {/* Line Items */}
-          <SectionCard step="2" title="Line Items">
-            {/* Desktop table header */}
-            <div className="hidden md:grid md:grid-cols-12 gap-2 mb-2 px-1">
-              <p className="col-span-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {/* ── Section 2: Line Items ────────────────────────────────── */}
+          <SectionCard
+            step="02"
+            title="Line Items"
+            icon={<Package className="w-3.5 h-3.5" />}
+          >
+            {/* Desktop table header — columns now match the row layout */}
+            <div className="hidden md:grid md:grid-cols-12 gap-2 mb-3 px-1">
+              <p className="col-span-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Description
               </p>
               <p className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -405,6 +477,9 @@ export default function CreateInvoicePage() {
               </p>
               <p className="col-span-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Qty
+              </p>
+              <p className="col-span-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Unit
               </p>
               <p className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Rate (₹)
@@ -417,20 +492,20 @@ export default function CreateInvoicePage() {
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="group md:grid md:grid-cols-12 gap-2 flex flex-col p-3 md:p-0 border border-border md:border-0 rounded-xl md:rounded-none bg-muted/30 md:bg-transparent"
+                  className="group md:grid md:grid-cols-12 gap-2 flex flex-col p-3 md:p-2 md:px-1 border border-border md:border-0 rounded-xl md:rounded-none bg-muted/20 md:bg-transparent hover:bg-muted/30 md:hover:bg-muted/10 transition-colors duration-150"
                 >
                   {/* Description */}
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-3">
                     <label className="md:hidden text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
                       Description *
                     </label>
                     <input
                       type="text"
-                      placeholder="Service / product name"
+                      placeholder="Service / product"
                       {...register(`lineItems.${index}.description`, {
                         required: "Required",
                       })}
@@ -476,6 +551,26 @@ export default function CreateInvoicePage() {
                           ? inputError
                           : inputNormal
                       }
+                    />
+                  </div>
+
+                  {/* Unit */}
+                  <div className="md:col-span-1">
+                    <label className="md:hidden text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                      Unit
+                    </label>
+                    <Controller
+                      name={`lineItems.${index}.unit`}
+                      control={control}
+                      render={({ field }) => (
+                        <select {...field} className={inputNormal}>
+                          {UQC_OPTIONS.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     />
                   </div>
 
@@ -530,7 +625,7 @@ export default function CreateInvoicePage() {
 
                   {/* Amount + Remove */}
                   <div className="md:col-span-2 flex items-center justify-between md:justify-end gap-2">
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
                       ₹
                       {computedItems[index]?.total.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
@@ -541,23 +636,23 @@ export default function CreateInvoicePage() {
                       type="button"
                       onClick={() => remove(index)}
                       disabled={fields.length === 1}
-                      className="flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-20 transition-all"
+                      title="Remove item"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-20 transition-all duration-200 shrink-0"
                     >
-                      <X className="w-7 h-7" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Add line item */}
             <button
               type="button"
               onClick={() => append(DEFAULT_LINE_ITEM)}
-              className="mt-4 flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-semibold transition-colors"
+              className="mt-4 flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-semibold transition-colors duration-200 group"
             >
-              <span className="w-5 h-5 rounded-full border-2 border-primary/50 flex items-center justify-center text-xs font-bold">
-                +
-              </span>
+              <PlusCircle className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
               Add line item
             </button>
 
@@ -565,7 +660,7 @@ export default function CreateInvoicePage() {
             <div className="mt-6 pt-4 border-t border-border space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Subtotal</span>
-                <span>
+                <span className="tabular-nums">
                   ₹
                   {subtotal.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -581,7 +676,7 @@ export default function CreateInvoicePage() {
                     className="flex justify-between text-sm text-muted-foreground"
                   >
                     <span>GST @ {rate}%</span>
-                    <span>
+                    <span className="tabular-nums">
                       ₹
                       {amount.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
@@ -592,7 +687,7 @@ export default function CreateInvoicePage() {
                 ))}
               <div className="flex justify-between font-bold text-foreground text-base pt-3 border-t border-border">
                 <span>Grand Total</span>
-                <span className="text-primary">
+                <span className="text-primary tabular-nums">
                   ₹
                   {grandTotal.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -603,8 +698,12 @@ export default function CreateInvoicePage() {
             </div>
           </SectionCard>
 
-          {/* Notes */}
-          <SectionCard step="3" title="Notes">
+          {/* ── Section 3: Notes ─────────────────────────────────────── */}
+          <SectionCard
+            step="03"
+            title="Notes"
+            icon={<MessageSquare className="w-3.5 h-3.5" />}
+          >
             <textarea
               rows={3}
               placeholder="Payment terms, additional information, or any other notes for this invoice..."
@@ -614,8 +713,8 @@ export default function CreateInvoicePage() {
           </SectionCard>
 
           {serverError && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <span className="text-destructive text-sm">⚠</span>
+            <div className="flex items-center gap-2.5 p-3.5 bg-destructive/10 border border-destructive/20 rounded-xl">
+              <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
               <p className="text-sm text-destructive font-medium">
                 {serverError}
               </p>
@@ -627,49 +726,67 @@ export default function CreateInvoicePage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex-1 px-4 py-2.5 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted transition-all"
+              className="flex-1 px-4 py-2.5 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted transition-all duration-200"
             >
               Discard
             </button>
             <button
-              type="submit"
+              type="button"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all"
               onClick={() => {
                 isDraftRef.current = false;
                 handleSubmit(onSubmit)();
               }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all duration-200"
             >
-              {isSubmitting ? "Creating..." : "Create Invoice"}
+              {isSubmitting ? (
+                "Creating..."
+              ) : (
+                <>
+                  Create Invoice
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
 
+        {/* ── Sidebar ───────────────────────────────────────────────── */}
         <div className="flex flex-col w-full lg:w-80 lg:sticky lg:top-6 shrink-0 gap-4">
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border bg-muted/40">
+          {/* Summary card */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-border bg-muted/30">
               <h3 className="text-sm font-semibold text-foreground">
                 Invoice Summary
               </h3>
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Invoice meta */}
-              <div className="space-y-2.5">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs text-muted-foreground">Invoice</span>
-                  <span className="text-xs font-semibold text-foreground">
-                    {watchedNumber}
+              {/* Meta rows */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Hash className="w-3 h-3" />
+                    Invoice
+                  </span>
+                  <span className="text-xs font-semibold text-foreground tabular-nums">
+                    {watchedNumber || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-xs text-muted-foreground">Client</span>
-                  <span className="text-xs font-semibold text-foreground text-right max-w-[140px] truncate">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <User className="w-3 h-3" />
+                    Client
+                  </span>
+                  <span className="text-xs font-semibold text-foreground text-right max-w-32 truncate">
                     {selectedClient?.name || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-xs text-muted-foreground">Due</span>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="w-3 h-3" />
+                    Due
+                  </span>
                   <span className="text-xs font-semibold text-foreground">
                     {watchedDueDate
                       ? new Date(watchedDueDate).toLocaleDateString("en-IN", {
@@ -680,8 +797,11 @@ export default function CreateInvoicePage() {
                       : "—"}
                   </span>
                 </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-xs text-muted-foreground">Items</span>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Layers className="w-3 h-3" />
+                    Items
+                  </span>
                   <span className="text-xs font-semibold text-foreground">
                     {fields.length}
                   </span>
@@ -691,7 +811,7 @@ export default function CreateInvoicePage() {
               <div className="border-t border-border pt-4 space-y-2">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Subtotal</span>
-                  <span>
+                  <span className="tabular-nums">
                     ₹
                     {subtotal.toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
@@ -700,7 +820,7 @@ export default function CreateInvoicePage() {
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Tax</span>
-                  <span>
+                  <span className="tabular-nums">
                     ₹
                     {totalTax.toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
@@ -710,11 +830,11 @@ export default function CreateInvoicePage() {
               </div>
 
               {/* Grand total highlight */}
-              <div className="bg-primary/8 rounded-xl p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">
+              <div className="bg-primary/8 border border-primary/15 rounded-xl p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">
                   Grand Total
                 </p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-2xl font-bold text-primary tabular-nums">
                   ₹
                   {grandTotal.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -724,19 +844,19 @@ export default function CreateInvoicePage() {
 
               {/* Line item breakdown */}
               {fields.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                     Breakdown
                   </p>
                   {watchedLineItems.map((item, i) => (
                     <div
                       key={i}
-                      className="flex justify-between items-center gap-2"
+                      className="flex justify-between items-center gap-2 py-1.5 border-b border-border/40 last:border-0"
                     >
                       <span className="text-xs text-muted-foreground truncate flex-1">
                         {item.description || `Item ${i + 1}`}
                       </span>
-                      <span className="text-xs font-medium text-foreground flex-shrink-0">
+                      <span className="text-xs font-medium text-foreground shrink-0 tabular-nums">
                         ₹
                         {computedItems[i]?.total.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -748,47 +868,61 @@ export default function CreateInvoicePage() {
               )}
             </div>
           </div>
-          {/* qr payment toggle */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-1">
+
+          {/* Payment options card */}
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-foreground mb-0.5">
               Payment Options
             </h3>
             <p className="text-xs text-muted-foreground mb-4">
               Control how clients can pay this invoice
             </p>
 
-            <label className="flex items-center justify-between gap-3 p-3 bg-muted/40 rounded-xl cursor-pointer">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Include UPI QR code
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {/* show hint based on whether business has UPI */}
-                  Adds a scannable QR to the PDF for instant payment
-                </p>
-              </div>
-              <Controller
-                name="showPaymentQR"
-                control={control}
-                render={({ field }) => (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={field.value}
-                    onClick={() => field.onChange(!field.value)}
-                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-                      field.value ? "bg-primary" : "bg-muted-foreground/30"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        field.value ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                )}
-              />
-            </label>
+            <div className="space-y-2">
+              {/* UPI QR */}
+              <label className="flex items-center gap-3 p-3 bg-muted/40 border border-border/50 rounded-xl cursor-pointer hover:bg-muted/70 transition-colors duration-200">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <QrCode className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    Include UPI QR code
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Adds a scannable QR to the PDF
+                  </p>
+                </div>
+                <Controller
+                  name="showPaymentQR"
+                  control={control}
+                  render={({ field }) => (
+                    <Toggle checked={field.value} onChange={field.onChange} />
+                  )}
+                />
+              </label>
+
+              {/* Reverse charge */}
+              <label className="flex items-center gap-3 p-3 bg-muted/40 border border-border/50 rounded-xl cursor-pointer hover:bg-muted/70 transition-colors duration-200">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    Reverse charge
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Tax liability shifts to the recipient
+                  </p>
+                </div>
+                <Controller
+                  name="reverseCharge"
+                  control={control}
+                  render={({ field }) => (
+                    <Toggle checked={field.value} onChange={field.onChange} />
+                  )}
+                />
+              </label>
+            </div>
           </div>
         </div>
       </form>

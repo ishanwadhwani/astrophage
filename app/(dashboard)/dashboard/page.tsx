@@ -17,6 +17,7 @@ import { useBusiness } from "@/hooks/useBusiness";
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { fetchBusiness } from "@/lib/business";
 
 const statusStyles: Record<string, string> = {
   DRAFT: "bg-status-draft text-status-draft-foreground",
@@ -340,9 +341,15 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [charts, setCharts] = useState<DashboardCharts | null>(null);
+  const [setupIncomplete, setSetupIncomplete] = useState(false);
 
   useEffect(() => {
     if (!businessId) return;
+    fetchBusiness(businessId)
+      .then((biz) => {
+        setSetupIncomplete(!biz.gstin && !biz.state);
+      })
+      .catch(() => {});
 
     const fetchData = async () => {
       try {
@@ -375,8 +382,8 @@ export default function DashboardPage() {
     recentInvoices,
   } = data;
 
-  const isSetupIncomplete =
-    !user?.business?.name || data.stats.totalClients === 0;
+  // const isSetupIncomplete =
+  //   !user?.business?.name || data.stats.totalClients === 0;
 
   const net = stats.totalReceivables - stats.totalPayables;
   const hour = new Date().getHours();
@@ -402,7 +409,7 @@ export default function DashboardPage() {
       </div>
 
       {/* reminder message to fill up the details */}
-      {isSetupIncomplete && (
+      {setupIncomplete && (
         <div className="flex items-center gap-4 bg-primary/8 border border-primary/20 rounded-2xl px-5 py-4">
           <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <svg
