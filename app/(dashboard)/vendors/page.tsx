@@ -350,7 +350,13 @@ export default function VendorsPage() {
         businessId={businessId!}
         vendors={vendors}
         onClose={() => setRecurringModalOpen(false)}
-        onCreated={(rb) => setRecurring((prev) => [rb, ...prev])}
+        onCreated={async (rb) => {
+          setRecurring((prev) => [rb, ...prev]);
+          if (businessId) {
+            const fresh = await fetchBills(businessId);
+            setBills(fresh);
+          }
+        }}
       />
 
       <RecordBillPaymentModal

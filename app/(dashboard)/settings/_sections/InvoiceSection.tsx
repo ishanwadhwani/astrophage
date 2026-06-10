@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { ArrowLeft, Lock } from "lucide-react";
+
 import { fetchBusiness, updateInvoicePrefix } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
 import { LoadingState } from "@/components/ui/LoadingState";
+import PermissionGate from "@/components/ui/PermissionGate";
+import { useToast } from "@/components/ui/Toast";
 
 type PrefixForm = { invoicePrefix: string };
 
@@ -48,35 +52,11 @@ function SaveButton({ isSubmitting }: { isSubmitting: boolean }) {
   );
 }
 
-function Toast({
-  message,
-  type,
-}: {
-  message: string;
-  type: "success" | "error";
-}) {
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all ${type === "success" ? "bg-status-paid text-status-paid-foreground" : "bg-destructive/10 text-destructive border border-destructive/20"}`}
-    >
-      <span>{type === "success" ? "✓" : "⚠"}</span>
-      {message}
-    </div>
-  );
-}
-
 export default function InvoiceSection() {
   const { businessId } = useBusiness();
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
-  const showToast = (message: string, type: "success" | "error") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { success, error } = useToast();
 
   const {
     register,
@@ -94,7 +74,7 @@ export default function InvoiceSection() {
         const data = await fetchBusiness(businessId);
         reset({ invoicePrefix: data.invoicePrefix ?? "INV" });
       } catch {
-        showToast("Failed to load invoice settings", "error");
+        error("Failed to load invoice settings", "error");
       } finally {
         setLoading(false);
       }
@@ -105,44 +85,79 @@ export default function InvoiceSection() {
   const onSubmit = async (values: PrefixForm) => {
     try {
       await updateInvoicePrefix(businessId!, values.invoicePrefix);
-      showToast("Invoice prefix saved", "success");
+      success("Invoice prefix saved", "success");
     } catch {
-      showToast("Failed to save prefix", "error");
+      error("Failed to save prefix", "error");
     }
   };
 
   if (loading) return <LoadingState page="settings" />;
 
   return (
-    <SectionCard
-      title="Invoice Numbering"
-      description="Invoices will be numbered as PREFIX-0001, PREFIX-0002 and so on."
-    >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <div className="max-w-xs">
-          <label className={labelBase}>
-            Invoice Prefix <span className="text-destructive">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="INV"
-            maxLength={10}
-            {...register("invoicePrefix", {
-              required: "Prefix is required",
-              maxLength: 10,
-            })}
-            className={inputNormal}
-          />
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Your next invoice will be numbered{" "}
-            <span className="font-mono font-semibold text-foreground">
-              PREFIX-0001
-            </span>
+    <PermissionGate
+      permission="settings:edit"
+      fallback={
+        <div className="flex flex-col items-center justify-center text-center p-8 border border-border bg-card rounded-2xl max-w-sm mx-auto my-6 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground border border-border/40 flex items-center justify-center mb-4">
+            <Lock className="w-5 h-5" strokeWidth={2.5} />
+          </div>
+
+          <h3 className="text-sm font-bold text-primary mb-1.5">
+            View-Only Access
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-65 mb-5 leading-normal">
+            Your current role doesn&apos;t have permission to modify these
+            parameters. Please contact your organization owner for full editing
+            access.
           </p>
+
+          <button
+            onClick={() =>
+              window.history.length > 1
+                ? window.history.back()
+                : (window.location.href = "/dashboard")
+            }
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 w-full bg-background border border-border text-primary text-xs font-semibold rounded-xl hover:bg-muted shadow-sm transition-all active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            Go back
+          </button>
         </div>
-        <SaveButton isSubmitting={isSubmitting} />
-      </form>
-      {toast && <Toast message={toast.message} type={toast.type} />}
-    </SectionCard>
+      }
+    >
+      <SectionCard
+        title="Invoice Numbering"
+        description="Invoices will be numbered as PREFIX-0001, PREFIX-0002 and so on."
+      >
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+        >
+          <div className="max-w-xs">
+            <label className={labelBase}>
+              Invoice Prefix <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="INV"
+              maxLength={10}
+              {...register("invoicePrefix", {
+                required: "Prefix is required",
+                maxLength: 10,
+              })}
+              className={inputNormal}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Your next invoice will be numbered{" "}
+              <span className="font-mono font-semibold text-foreground">
+                PREFIX-0001
+              </span>
+            </p>
+          </div>
+          <SaveButton isSubmitting={isSubmitting} />
+        </form>
+      </SectionCard>
+    </PermissionGate>
   );
 }

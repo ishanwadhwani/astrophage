@@ -198,7 +198,9 @@ export default function InvoicesPage() {
               <InvoiceExportButton invoices={filtered} label="Export" />
             </PermissionGate>
           ) : (
-            <RecurringInvoiceExportButton items={recurring} label="Export" />
+            <PermissionGate permission="report:export">
+              <RecurringInvoiceExportButton items={recurring} label="Export" />
+            </PermissionGate>
           )}{" "}
           <PermissionGate permission="invoice:create">
             <button

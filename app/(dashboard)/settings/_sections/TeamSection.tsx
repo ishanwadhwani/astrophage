@@ -7,6 +7,9 @@ import { TeamMember, MemberRole } from "@/types/auth";
 import PermissionGate from "@/components/ui/PermissionGate";
 import { useBusiness } from "@/hooks/useBusiness";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useToast } from "@/components/ui/Toast";
+import { Info, ArrowLeft, Lock } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 type InviteForm = { email: string; role: MemberRole };
 
@@ -55,36 +58,12 @@ function SectionCard({
   );
 }
 
-function Toast({
-  message,
-  type,
-}: {
-  message: string;
-  type: "success" | "error";
-}) {
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all ${type === "success" ? "bg-status-paid text-status-paid-foreground" : "bg-destructive/10 text-destructive border border-destructive/20"}`}
-    >
-      <span>{type === "success" ? "✓" : "⚠"}</span>
-      {message}
-    </div>
-  );
-}
-
 export default function TeamSection() {
   const { businessId } = useBusiness();
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
 
-  const showToast = (message: string, type: "success" | "error") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { success, error, confirm } = useToast();
 
   const {
     register,
@@ -105,7 +84,7 @@ export default function TeamSection() {
         const teamData = await axiosInstance.get(`/api/team/${businessId}`);
         setTeam(teamData.data);
       } catch {
-        showToast("Failed to load team data", "error");
+        error("Failed to load team data", "error");
       } finally {
         setLoading(false);
       }
@@ -116,37 +95,93 @@ export default function TeamSection() {
   const onInvite = async (values: InviteForm) => {
     try {
       await axiosInstance.post(`/api/team/${businessId}/invite`, values);
-      showToast("Invite sent", "success");
+      success("Invite sent", "success");
       reset();
       const teamData = await axiosInstance.get(`/api/team/${businessId}`);
       setTeam(teamData.data);
-    } catch (err: unknown) {
-      let msg = "Failed to send invite";
-      if (typeof err === "object" && err !== null && "response" in err) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const e = err as any;
-        msg = e?.response?.data?.message ?? msg;
-      }
-      showToast(msg, "error");
+    } catch {
+      // let msg = "Failed to send invite";
+      // if (typeof err === "object" && err !== null && "response" in err) {
+      //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      //   const e = err as any;
+      //   msg = e?.response?.data?.message ?? msg;
+      // }
+      error("Failed to sent the invite", "error");
     }
   };
 
   const handleRemoveMember = async (userId: string, name: string | null) => {
-    const ok = window.confirm(`Remove ${name ?? "this member"} from the team?`);
-    if (!ok) return;
+    const confirmed = await confirm({
+      title: "Remove Team Member?",
+      message: `Remove ${name ?? "this member"} from the team?`,
+      confirmText: "Delete Member",
+      cancelText: "Keep Member",
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
     try {
       await axiosInstance.delete(`/api/team/${businessId}/members/${userId}`);
       setTeam((prev) => prev.filter((m) => m.id !== userId));
-      showToast("Member removed", "success");
+      success("Member removed", "success");
     } catch {
-      showToast("Failed to remove member", "error");
+      error("Failed to remove member", "error");
     }
   };
+
+  const handleRoleChange = async (userId: string, newRole: MemberRole) => {
+    try {
+      await axiosInstance.put(`/api/team/${businessId}/members/${userId}`, {
+        role: newRole,
+      });
+      setTeam((prev) =>
+        prev.map((m) => (m.id === userId ? { ...m, role: newRole } : m)),
+      );
+      success("Role updated", "success");
+    } catch {
+      error("Failed to update role", "error");
+    }
+  };
+
+  const activeRoleDesc =
+    ROLE_OPTIONS.find((r) => r.value === selectedRole)?.desc ||
+    "No role selected";
 
   if (loading) return <LoadingState page="settings" />;
 
   return (
-    <PermissionGate permission="team:manage">
+    <PermissionGate
+      permission="team:manage"
+      fallback={
+        <div className="flex flex-col items-center justify-center text-center p-8 border border-border bg-card rounded-2xl max-w-sm mx-auto my-6 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground border border-border/40 flex items-center justify-center mb-4">
+            <Lock className="w-5 h-5" strokeWidth={2.5} />
+          </div>
+
+          <h3 className="text-sm font-bold text-primary mb-1.5">
+            View-Only Access
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-65 mb-5 leading-normal">
+            Your current role doesn&apos;t have permission to modify these
+            parameters. Please contact your organization owner for full editing
+            access.
+          </p>
+
+          <button
+            onClick={() =>
+              window.history.length > 1
+                ? window.history.back()
+                : (window.location.href = "/dashboard")
+            }
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 w-full bg-background border border-border text-primary text-xs font-semibold rounded-xl hover:bg-muted shadow-sm transition-all active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            Go back
+          </button>
+        </div>
+      }
+    >
       <SectionCard
         title="Team Members"
         description="Invite people to collaborate on this business with defined access roles."
@@ -176,17 +211,36 @@ export default function TeamSection() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span
+                {/* <span
                   className={`px-2 py-1 rounded-full text-xs font-semibold ${member.type === "invite" ? "bg-status-pending text-status-pending-foreground" : member.role === "OWNER" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
                 >
                   {member.type === "invite"
                     ? `Invited · ${member.role}`
                     : member.role}
-                </span>
+                </span> */}
+                {member.type === "member" && member.role !== "OWNER" ? (
+                  <select
+                    value={member.role}
+                    onChange={(e) =>
+                      handleRoleChange(member.id, e.target.value as MemberRole)
+                    }
+                    className="px-2 py-1 bg-muted border border-input rounded-lg text-xs font-semibold text-foreground outline-none focus:border-primary"
+                  >
+                    {["ADMIN", "EDITOR", "ACCOUNTANT", "VIEWER"].map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                    {member.role}
+                  </span>
+                )}
                 {member.role !== "OWNER" && member.type === "member" && (
                   <button
                     onClick={() => handleRemoveMember(member.id, member.name)}
-                    className="text-xs text-destructive hover:text-destructive/70 transition"
+                    className="px-2 py-1 border border-destructive hover:border-destructive/70 rounded-lg text-xs font-semibold text-destructive hover:text-destructive/70 transition"
                   >
                     Remove
                   </button>
@@ -240,18 +294,25 @@ export default function TeamSection() {
               />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground bg-muted/60 px-3 py-2 rounded-lg">
+          {/* <p className="text-xs text-muted-foreground bg-muted/60 px-3 py-2 rounded-lg">
             ℹ {ROLE_OPTIONS.find((r) => r.value === selectedRole)?.desc}
-          </p>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
-          >
-            {isSubmitting ? "Sending..." : "Send Invite"}
-          </button>
+          </p> */}
+          <div className="flex items-center justify-between">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
+            >
+              {isSubmitting ? "Sending..." : "Send Invite"}
+            </button>
+            <Tooltip content={activeRoleDesc} side="left" variant="info">
+              <Info className="h-3.5 w-3.5 mt-0.75 text-primary mr-1" />
+              <span className="text-xs font-medium text-primary cursor-help underline decoration-dotted">
+                What does this role do?
+              </span>
+            </Tooltip>
+          </div>
         </form>
-        {toast && <Toast message={toast.message} type={toast.type} />}
       </SectionCard>
     </PermissionGate>
   );

@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { ArrowLeft, Lock } from "lucide-react"
+
 import { BusinessForm, UpdateBusinessPayload } from "@/types/business";
 import { fetchBusiness, updateBusiness } from "@/lib/business";
 import { useBusiness } from "@/hooks/useBusiness";
 import { STATES } from "@/constants/invoice-options";
 import { LoadingState } from "@/components/ui/LoadingState";
 import PermissionGate from "@/components/ui/PermissionGate";
-import {Button} from "@/components/ui/Button"
+import { Button } from "@/components/ui/Button";
 
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
@@ -165,7 +167,34 @@ export default function BusinessSection() {
   return (
     <PermissionGate
       permission="settings:edit"
-      fallback={<p className="text-sm text-muted-foreground">Read only.</p>}
+      fallback={
+        <div className="flex flex-col items-center justify-center text-center p-8 border border-border bg-card rounded-2xl max-w-sm mx-auto my-6 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground border border-border/40 flex items-center justify-center mb-4">
+            <Lock className="w-5 h-5" strokeWidth={2.5} />
+          </div>
+
+          <h3 className="text-sm font-bold text-primary mb-1.5">
+            View-Only Access
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-65 mb-5 leading-normal">
+            Your current role doesn&apos;t have permission to modify these
+            parameters. Please contact your organization owner for full editing
+            access.
+          </p>
+
+          <button
+            onClick={() =>
+              window.history.length > 1
+                ? window.history.back()
+                : (window.location.href = "/dashboard")
+            }
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 w-full bg-background border border-border text-primary text-xs font-semibold rounded-xl hover:bg-muted shadow-sm transition-all active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            Go back
+          </button>
+        </div>
+      }
     >
       <SectionCard
         title="Business Profile"

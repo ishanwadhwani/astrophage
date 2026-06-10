@@ -172,6 +172,9 @@ export default function CreateInvoicePage() {
         setClients(clientList);
         setValue("number", number);
         if (!business.state) setBusinessStateWarning(true);
+        if (business.state) {
+          setValue("placeOfSupply", business.state);
+        }
       } catch {}
     };
     void fetchData();
