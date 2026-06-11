@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Download } from "lucide-react";
+import { Download, Building2, FilePlus, RefreshCw, CalendarDays, X } from "lucide-react";
 
 import { Vendor, Bill, RecurringBill } from "@/types/vendor";
 import {
@@ -217,7 +217,7 @@ export default function VendorsPage() {
           <PermissionGate permission="report:export">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border shadow-sm text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
             >
               <Download className="h-4 w-4" />
               Export
@@ -238,8 +238,15 @@ export default function VendorsPage() {
                 if (tab === "Bills") setBillModalOpen(true);
                 if (tab === "Recurring") setRecurringModalOpen(true);
               }}
-              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/15"
             >
+              {tab === "Vendors" ? (
+                <Building2 className="h-4 w-4" />
+              ) : tab === "Bills" ? (
+                <FilePlus className="h-4 w-4" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
               {tab === "Vendors"
                 ? "Add Vendor"
                 : tab === "Bills"
@@ -280,40 +287,49 @@ export default function VendorsPage() {
         )}
 
         {tab === "Bills" && (
-          <div className="flex items-center gap-2 p-4">
-            <span className="text-xs text-muted-foreground">Due date:</span>
-            <input
-              type="date"
-              value={billDateRange.from}
-              onChange={(e) =>
-                setBillDateRange((p) => ({ ...p, from: e.target.value }))
-              }
-              className="px-3 py-2 bg-card border border-input rounded-lg text-sm outline-none focus:border-primary transition"
-            />
-            <span className="text-xs text-muted-foreground">to</span>
-            <input
-              type="date"
-              value={billDateRange.to}
-              onChange={(e) =>
-                setBillDateRange((p) => ({ ...p, to: e.target.value }))
-              }
-              className="px-3 py-2 bg-card border border-input rounded-lg text-sm outline-none focus:border-primary transition"
-            />
-            {(billDateRange.from || billDateRange.to) && (
-              <button
-                onClick={() => setBillDateRange({ from: "", to: "" })}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        )}
-
-        {tab === "Bills" && (
           <>
+            {/* Date filter bar */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-wrap">
+              <div className="flex items-center gap-2 bg-background border border-input rounded-xl px-3 py-2">
+                <CalendarDays className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                <input
+                  type="date"
+                  value={billDateRange.from}
+                  onChange={(e) =>
+                    setBillDateRange((p) => ({ ...p, from: e.target.value }))
+                  }
+                  className="date-themed text-sm text-foreground w-32 bg-transparent outline-none"
+                />
+                <div className="w-px h-4 bg-border shrink-0" />
+                <input
+                  type="date"
+                  value={billDateRange.to}
+                  onChange={(e) =>
+                    setBillDateRange((p) => ({ ...p, to: e.target.value }))
+                  }
+                  className="date-themed text-sm text-foreground w-32 bg-transparent outline-none"
+                />
+                {(billDateRange.from || billDateRange.to) && (
+                  <>
+                    <div className="w-px h-4 bg-border shrink-0" />
+                    <button
+                      onClick={() => setBillDateRange({ from: "", to: "" })}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              {(billDateRange.from || billDateRange.to) && (
+                <span className="text-xs text-muted-foreground">
+                  {filteredBills.length} of {bills.length} bills
+                </span>
+              )}
+            </div>
+
             <BillTable
-              bills={bills}
+              bills={filteredBills}
               onPay={setPaymentBill}
               onDelete={handleDeleteBill}
             />

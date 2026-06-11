@@ -3,7 +3,14 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import {
+  Trash2,
+  FilePlus,
+  Banknote,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-react";
 
 import { Invoice, InvoiceStatus, RecurringInvoice } from "@/types/invoice";
 import {
@@ -45,14 +52,9 @@ export default function InvoicesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
-  // const handleClearDate = () => {
-  //   setDateRange({ from: "", to: "" });
-  // };
-
   const { confirm, success, error } = useToast();
 
   useEffect(() => {
-    // setLoading(true);
     if (!businessId) return;
 
     const fetchData = async () => {
@@ -107,25 +109,10 @@ export default function InvoicesPage() {
       }, 0);
 
     const overdueCount = invoices.filter((i) => i.status === "OVERDUE").length;
-
     const paidCount = invoices.filter((i) => i.status === "PAID").length;
 
     return { totalReceivables, overdueCount, paidCount };
   }, [invoices]);
-
-  // useEffect(() => {
-  //   setSelected(new Set());
-  // }, [search, status]);
-
-  // const handleSearchChange = (value: string) => {
-  //   setSearch(value);
-  //   setSelected(new Set());
-  // };
-
-  // const handleStatusChange = (value: InvoiceStatus | "ALL") => {
-  //   setStatus(value);
-  //   setSelected(new Set());
-  // };
 
   const handleSelect = (id: string) => {
     setSelected((prev) => {
@@ -184,7 +171,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
@@ -192,6 +179,7 @@ export default function InvoicesPage() {
             {invoices.length} invoice{invoices.length !== 1 ? "s" : ""} total
           </p>
         </div>
+
         <div className="flex items-center gap-2">
           {pageTab === "invoices" ? (
             <PermissionGate permission="report:export">
@@ -201,7 +189,8 @@ export default function InvoicesPage() {
             <PermissionGate permission="report:export">
               <RecurringInvoiceExportButton items={recurring} label="Export" />
             </PermissionGate>
-          )}{" "}
+          )}
+
           <PermissionGate permission="invoice:create">
             <button
               onClick={() =>
@@ -209,54 +198,122 @@ export default function InvoicesPage() {
                   ? router.push("/invoices/create")
                   : setRecurringModal(true)
               }
-              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20 transition-all duration-200 shadow-sm shadow-primary/15"
             >
-              {pageTab === "invoices" ? "New Invoice" : "Add Recurring"}
+              {pageTab === "invoices" ? (
+                <>
+                  <FilePlus className="w-4 h-4" />
+                  New Invoice
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Add Recurring
+                </>
+              )}
             </button>
           </PermissionGate>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl px-5 py-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Outstanding
-          </p>
-          <p className="text-xl font-bold text-foreground">
-            {fmt(stats.totalReceivables)}
-          </p>
+      {/* ── KPI cards ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Outstanding */}
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Outstanding
+              </p>
+              <p className="text-2xl font-bold text-foreground tabular-nums mt-2 leading-none">
+                {fmt(stats.totalReceivables)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Pending &amp; overdue receivables
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Banknote className="w-5 h-5 text-primary" />
+            </div>
+          </div>
         </div>
-        <div className="bg-card border border-border rounded-2xl px-5 py-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Overdue
-          </p>
-          <p
-            className={`text-xl font-bold ${
-              stats.overdueCount > 0
-                ? "text-status-overdue-foreground"
-                : "text-foreground"
-            }`}
-          >
-            {stats.overdueCount} invoice{stats.overdueCount !== 1 ? "s" : ""}
-          </p>
+
+        {/* Overdue */}
+        <div
+          className={`bg-card border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 ${
+            stats.overdueCount > 0
+              ? "border-status-overdue-foreground/25"
+              : "border-border"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Overdue
+              </p>
+              <p
+                className={`text-2xl font-bold tabular-nums mt-2 leading-none ${
+                  stats.overdueCount > 0
+                    ? "text-status-overdue-foreground"
+                    : "text-foreground"
+                }`}
+              >
+                {stats.overdueCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {stats.overdueCount === 1
+                  ? "Invoice needs attention"
+                  : "Invoices need attention"}
+              </p>
+            </div>
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                stats.overdueCount > 0
+                  ? "bg-status-overdue"
+                  : "bg-muted"
+              }`}
+            >
+              <AlertTriangle
+                className={`w-5 h-5 ${
+                  stats.overdueCount > 0
+                    ? "text-status-overdue-foreground"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </div>
+          </div>
         </div>
-        <div className="bg-card border border-border rounded-2xl px-5 py-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            Paid
-          </p>
-          <p className="text-xl font-bold text-status-paid-foreground">
-            {stats.paidCount} invoice{stats.paidCount !== 1 ? "s" : ""}
-          </p>
+
+        {/* Paid */}
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Collected
+              </p>
+              <p className="text-2xl font-bold text-status-paid-foreground tabular-nums mt-2 leading-none">
+                {stats.paidCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {stats.paidCount === 1
+                  ? "Invoice fully paid"
+                  : "Invoices fully paid"}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-status-paid flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-status-paid-foreground" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* tab switcher */}
+      {/* ── Tab switcher ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
         {(["invoices", "recurring"] as PageTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setPageTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 capitalize ${
               pageTab === t
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -269,19 +326,7 @@ export default function InvoicesPage() {
         ))}
       </div>
 
-      <PermissionGate permission="invoice:create">
-        <button
-          onClick={() =>
-            pageTab === "invoices"
-              ? router.push("/invoices/create")
-              : setRecurringModal(true)
-          }
-          className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
-        >
-          {pageTab === "invoices" ? "New invoice" : "Add Recurring"}
-        </button>
-      </PermissionGate>
-
+      {/* ── Filters ──────────────────────────────────────────────────── */}
       <InvoiceFilters
         search={search}
         status={status}
@@ -294,8 +339,9 @@ export default function InvoicesPage() {
         filteredCount={filtered.length}
       />
 
+      {/* ── Bulk selection bar ───────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 mb-4 bg-primary/5 border border-primary/20 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="flex items-center justify-between px-5 py-3 bg-primary/5 border border-primary/20 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="text-sm text-foreground">
             <span className="font-bold text-primary">{selected.size}</span>{" "}
             invoice{selected.size !== 1 ? "s" : ""} selected
@@ -322,18 +368,26 @@ export default function InvoicesPage() {
         </div>
       )}
 
+      {/* ── Invoice table ─────────────────────────────────────────────── */}
       {pageTab === "invoices" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
           {invoices.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground text-sm mb-3">
-                No invoices yet.
+            <div className="text-center py-20 px-6">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <FilePlus className="w-7 h-7 text-muted-foreground/50" />
+              </div>
+              <p className="text-base font-semibold text-foreground mb-1.5">
+                No invoices yet
+              </p>
+              <p className="text-sm text-muted-foreground mb-5">
+                Create your first invoice to start tracking payments
               </p>
               <Link
                 href="/invoices/create"
-                className="text-sm font-semibold text-primary hover:text-primary/80 transition"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
               >
-                Create your first invoice →
+                <FilePlus className="w-4 h-4" />
+                Create your first invoice
               </Link>
             </div>
           ) : (
@@ -348,8 +402,9 @@ export default function InvoicesPage() {
         </div>
       )}
 
+      {/* ── Recurring table ───────────────────────────────────────────── */}
       {pageTab === "recurring" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
           <RecurringInvoiceTable
             items={recurring}
             onToggle={async (id) => {

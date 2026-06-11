@@ -8,50 +8,33 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-
 import { MonthlyTrend } from "@/types/dashboard";
 
-type TooltipItem = {
-  name?: string | number;
-  value?: number | string;
-  color?: string;
-};
-
-type CustomTooltipProps = {
-  active?: boolean;
-  payload?: TooltipItem[];
-  label?: string | number;
-};
+type TooltipItem = { name?: string | number; value?: number | string; color?: string };
+type CustomTooltipProps = { active?: boolean; payload?: TooltipItem[]; label?: string | number };
 
 const fmt = (n: number) =>
-  n >= 100000
-    ? "₹" + (n / 100000).toFixed(1) + "L"
-    : n >= 1000
-      ? "₹" + (n / 1000).toFixed(0) + "K"
-      : "₹" + n;
+  n >= 10_000_000 ? `₹${(n / 10_000_000).toFixed(1)}Cr`
+  : n >= 100_000  ? `₹${(n / 100_000).toFixed(1)}L`
+  : n >= 1_000    ? `₹${(n / 1_000).toFixed(0)}K`
+  : `₹${n}`;
 
 const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
-
   return (
-    <div className="rounded-xl border border-border bg-card p-3 text-sm shadow-lg">
-      <p className="mb-2 font-semibold text-foreground">{label}</p>
-
-      {payload.map((p, index) => (
-        <div
-          key={`${p.name ?? "item"}-${index}`}
-          className="flex items-center gap-2 py-0.5"
-        >
+    <div className="rounded-xl border border-border bg-card p-3 shadow-lg min-w-40">
+      <p className="mb-2 text-xs font-semibold text-foreground">{label}</p>
+      {payload.map((p, i) => (
+        <div key={`${String(p.name)}-${i}`} className="flex items-center gap-2 py-0.5">
           <span
-            className="h-2 w-2 rounded-full"
+            className="h-2 w-2 shrink-0 rounded-full"
             style={{ backgroundColor: p.color ?? "currentColor" }}
           />
-          <span className="capitalize text-muted-foreground">
+          <span className="flex-1 capitalize text-xs text-muted-foreground">
             {String(p.name ?? "Value")}
           </span>
-          <span className="ml-auto pl-4 font-medium text-foreground">
+          <span className="pl-4 text-xs font-semibold text-foreground">
             {fmt(Number(p.value ?? 0))}
           </span>
         </div>
@@ -60,28 +43,31 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   );
 };
 
+// Calm palette: teal (invoiced) · blue (collected) · purple (spent — NOT red)
+const C = {
+  invoiced:  "hsl(173,80%,40%)",
+  collected: "hsl(221,83%,53%)",
+  spent:     "hsl(258,90%,66%)",
+};
+
 export default function RevenueChart({ data }: { data: MonthlyTrend[] }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
         <defs>
-          <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(221,83%,53%)" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="hsl(221,83%,53%)" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="colorInvoiced" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(173,80%,40%)" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="hsl(173,80%,40%)" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="colorSpent" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(0,72%,51%)" stopOpacity={0.1} />
-            <stop offset="95%" stopColor="hsl(0,72%,51%)" stopOpacity={0} />
-          </linearGradient>
+          {(["invoiced", "collected", "spent"] as const).map((key) => (
+            <linearGradient key={key} id={`grad-${key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stopColor={C[key]} stopOpacity={0.18} />
+              <stop offset="95%" stopColor={C[key]} stopOpacity={0} />
+            </linearGradient>
+          ))}
         </defs>
+
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="hsl(var(--border))"
           vertical={false}
+          opacity={0.6}
         />
         <XAxis
           dataKey="month"
@@ -94,20 +80,16 @@ export default function RevenueChart({ data }: { data: MonthlyTrend[] }) {
           tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           axisLine={false}
           tickLine={false}
-          width={48}
+          width={52}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
-        />
+
         <Area
           type="monotone"
           dataKey="invoiced"
-          stroke="hsl(173,80%,40%)"
+          stroke={C.invoiced}
           strokeWidth={2}
-          fill="url(#colorInvoiced)"
+          fill="url(#grad-invoiced)"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
           name="Invoiced"
@@ -115,9 +97,9 @@ export default function RevenueChart({ data }: { data: MonthlyTrend[] }) {
         <Area
           type="monotone"
           dataKey="collected"
-          stroke="hsl(221,83%,53%)"
+          stroke={C.collected}
           strokeWidth={2}
-          fill="url(#colorCollected)"
+          fill="url(#grad-collected)"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
           name="Collected"
@@ -125,9 +107,9 @@ export default function RevenueChart({ data }: { data: MonthlyTrend[] }) {
         <Area
           type="monotone"
           dataKey="spent"
-          stroke="hsl(0,72%,51%)"
+          stroke={C.spent}
           strokeWidth={2}
-          fill="url(#colorSpent)"
+          fill="url(#grad-spent)"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
           name="Spent"

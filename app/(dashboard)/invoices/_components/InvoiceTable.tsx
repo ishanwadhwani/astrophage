@@ -1,18 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, Search } from "lucide-react";
 
 import { Invoice } from "@/types/invoice";
 import PermissionGate from "@/components/ui/PermissionGate";
 
-const statusStyles: Record<string, string> = {
-  DRAFT: "bg-status-draft text-status-draft-foreground",
-  PENDING: "bg-status-pending text-status-pending-foreground",
-  PAID: "bg-status-paid text-status-paid-foreground",
-  OVERDUE: "bg-status-overdue text-status-overdue-foreground",
-  CANCELLED: "bg-status-cancelled text-status-cancelled-foreground",
+// Refined status badge: dot indicator + subtle tinted background
+const statusConfig: Record<
+  string,
+  { dot: string; bg: string; text: string; border: string; label: string }
+> = {
+  DRAFT: {
+    dot: "bg-status-draft-foreground/40",
+    bg: "bg-status-draft",
+    text: "text-status-draft-foreground",
+    border: "border-status-draft-foreground/15",
+    label: "Draft",
+  },
+  PENDING: {
+    dot: "bg-status-pending-foreground",
+    bg: "bg-status-pending",
+    text: "text-status-pending-foreground",
+    border: "border-status-pending-foreground/20",
+    label: "Pending",
+  },
+  PAID: {
+    dot: "bg-status-paid-foreground",
+    bg: "bg-status-paid",
+    text: "text-status-paid-foreground",
+    border: "border-status-paid-foreground/20",
+    label: "Paid",
+  },
+  OVERDUE: {
+    dot: "bg-status-overdue-foreground",
+    bg: "bg-status-overdue",
+    text: "text-status-overdue-foreground",
+    border: "border-status-overdue-foreground/20",
+    label: "Overdue",
+  },
+  CANCELLED: {
+    dot: "bg-status-cancelled-foreground/40",
+    bg: "bg-status-cancelled",
+    text: "text-status-cancelled-foreground",
+    border: "border-status-cancelled-foreground/15",
+    label: "Cancelled",
+  },
 };
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = statusConfig[status] ?? {
+    dot: "bg-muted-foreground/40",
+    bg: "bg-muted",
+    text: "text-muted-foreground",
+    border: "border-border",
+    label: status,
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+}
 
 const fmt = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
@@ -39,22 +91,40 @@ export default function InvoiceTable({
 }: Props) {
   if (invoices.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground text-sm">
-        No invoices match your search.
+      <div className="text-center py-16 px-6">
+        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-3">
+          <Search className="w-5 h-5 text-muted-foreground/50" />
+        </div>
+        <p className="text-sm font-semibold text-foreground mb-1">
+          No invoices match
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Try adjusting your search or filter criteria
+        </p>
       </div>
     );
   }
 
   const allSelected =
     invoices.length > 0 && invoices.every((inv) => selected.has(inv.id));
-
   const someSelected = invoices.some((inv) => selected.has(inv.id));
+
+  const COL_HEADERS = [
+    "Invoice",
+    "Client",
+    "Date",
+    "Due Date",
+    "Total",
+    "Outstanding",
+    "Status",
+    "",
+  ];
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-muted/60 border-b border-border">
-          <tr>
+        <thead>
+          <tr className="border-b border-border bg-muted/40">
             <th className="px-4 py-3 w-10">
               <input
                 type="checkbox"
@@ -66,41 +136,32 @@ export default function InvoiceTable({
                 className="w-4 h-4 accent-primary rounded cursor-pointer"
               />
             </th>
-            {[
-              "Invoice",
-              "Client",
-              "Date",
-              "Due Date",
-              "Total",
-              "Outstanding",
-              "Status",
-              "",
-            ].map((h) => (
+            {COL_HEADERS.map((h) => (
               <th
                 key={h}
-                className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap"
               >
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {invoices.map((invoice, index) => {
+
+        <tbody className="divide-y divide-border/60">
+          {invoices.map((invoice) => {
             const outstanding = getOutstanding(invoice);
             const isSelected = selected.has(invoice.id);
+
             return (
               <tr
                 key={invoice.id}
-                className={`transition group ${
+                className={`group transition-colors duration-100 ${
                   isSelected
                     ? "bg-primary/5"
-                    : index % 2 === 0
-                      ? "bg-card hover:bg-muted/30"
-                      : "bg-muted/20 hover:bg-muted/40"
+                    : "hover:bg-muted/30"
                 }`}
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -108,53 +169,65 @@ export default function InvoiceTable({
                     className="w-4 h-4 accent-primary rounded cursor-pointer"
                   />
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground">
+
+                {/* Invoice number */}
+                <td className="px-4 py-3.5">
                   <Link
                     href={`/invoices/${invoice.id}`}
-                    className="hover:text-primary transition"
+                    className="font-semibold text-foreground hover:text-primary transition-colors"
                   >
                     #{invoice.number}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
+
+                {/* Client */}
+                <td className="px-4 py-3.5 text-muted-foreground max-w-40 truncate">
                   {invoice.client.name}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+
+                {/* Invoice date */}
+                <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap tabular-nums">
                   {new Date(invoice.invoiceDate).toLocaleDateString("en-IN", {
                     day: "numeric",
                     month: "short",
                   })}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+
+                {/* Due date */}
+                <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap tabular-nums">
                   {new Date(invoice.dueDate).toLocaleDateString("en-IN", {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
                   })}
                 </td>
-                <td className="px-4 py-3 font-medium text-foreground tabular-nums">
+
+                {/* Total */}
+                <td className="px-4 py-3.5 font-medium text-foreground tabular-nums whitespace-nowrap">
                   {fmt(invoice.total)}
                 </td>
-                <td className="px-4 py-3 tabular-nums">
+
+                {/* Outstanding */}
+                <td className="px-4 py-3.5 tabular-nums whitespace-nowrap">
                   <span
                     className={
                       outstanding > 0
                         ? "font-semibold text-status-overdue-foreground"
-                        : "text-status-paid-foreground"
+                        : "text-status-paid-foreground font-medium"
                     }
                   >
                     {fmt(outstanding)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${statusStyles[invoice.status]}`}
-                  >
-                    {invoice.status}
-                  </span>
+
+                {/* Status */}
+                <td className="px-4 py-3.5">
+                  <StatusBadge status={invoice.status} />
                 </td>
-                <td className="px-4 py-3 text-right opacity-0 group-hover:opacity-100 transition">
-                  <div className="flex items-center justify-end gap-2">
+
+                {/* Actions */}
+                <td className="px-4 py-3.5 text-right opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                  <div className="flex items-center justify-end gap-1">
                     <Link
                       href={`/invoices/${invoice.id}`}
                       title="View invoice"

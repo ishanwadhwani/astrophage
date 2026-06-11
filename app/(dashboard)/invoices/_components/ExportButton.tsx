@@ -1,5 +1,6 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { Invoice, RecurringInvoice } from "@/types/invoice";
 import { exportToCSV, fmtCSVDate, fmtCSVAmount } from "@/lib/csv";
 
@@ -61,23 +62,15 @@ export default function InvoiceExportButton({
     <button
       onClick={handleExport}
       disabled={invoices.length === 0}
-      className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
+      className="flex items-center gap-2 px-4 py-2 border border-border bg-card text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7,10 12,15 17,10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-      {label} {invoices.length > 0 && `(${invoices.length})`}
+      <Download className="w-4 h-4" />
+      {label}
+      {invoices.length > 0 && (
+        <span className="text-xs text-muted-foreground/70">
+          ({invoices.length})
+        </span>
+      )}
     </button>
   );
 }
@@ -103,10 +96,6 @@ export function RecurringInvoiceExportButton({
         (s, item) => s + item.quantity * item.rate,
         0,
       );
-      const total = ri.lineItems.reduce((s, item) => {
-        const amount = item.quantity * item.rate;
-        return s + amount + (amount * item.gstRate) / 100;
-      }, 0);
       const itemSummary = ri.lineItems
         .map((i) => `${i.description} (×${i.quantity} @ ₹${i.rate})`)
         .join(" | ");
@@ -134,23 +123,15 @@ export function RecurringInvoiceExportButton({
     <button
       onClick={handleExport}
       disabled={items.length === 0}
-      className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
+      className="flex items-center gap-2 px-4 py-2 border border-border bg-card text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7,10 12,15 17,10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-      {label} {items.length > 0 && `(${items.length})`}
+      <Download className="w-4 h-4" />
+      {label}
+      {items.length > 0 && (
+        <span className="text-xs text-muted-foreground/70">
+          ({items.length})
+        </span>
+      )}
     </button>
   );
 }

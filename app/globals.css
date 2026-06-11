@@ -6,6 +6,35 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Hide scrollbar while keeping scroll functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Snappy drawer ease — fast in, smooth stop (iOS-style) */
+  .ease-drawer {
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+/* Ensure native date inputs respect the theme's color scheme */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/* Remove native date-input border so the parent container provides it */
+input.date-themed {
+  border: none;
+  outline: none;
+  background: transparent;
 }
 
 @layer base {
@@ -125,4 +154,25 @@
 
 html {
   scroll-behavior: smooth;
+  /* Reserve scrollbar space permanently — prevents layout jitter on page transitions */
+  scrollbar-gutter: stable;
+  /* Firefox thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
 }

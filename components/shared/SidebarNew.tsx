@@ -14,7 +14,7 @@ import {
   Settings,
   Cable,
   LogOut,
-  CircleX,
+  X,
 } from "lucide-react";
 
 import { logout } from "@/lib/auth";
@@ -26,48 +26,17 @@ const BusinessSwitcher = dynamic(() => import("./BusinessSwitcher"), {
 
 type StoredUser = {
   name?: string;
-  business?: {
-    name?: string;
-    role?: string;
-  };
+  business?: { name?: string; role?: string };
 } | null;
 
 const allNavItems = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: <LayoutDashboard className="w-5 h-5" />,
-  },
-  {
-    label: "Clients",
-    href: "/clients",
-    icon: <Users className="w-5 h-5" />,
-  },
-  {
-    label: "Invoices",
-    href: "/invoices",
-    icon: <FileText className="w-5 h-5" />,
-  },
-  {
-    label: "Vendors",
-    href: "/vendors",
-    icon: <Store className="w-5 h-5" />,
-  },
-  {
-    label: "Cashflow",
-    href: "/cashflow",
-    icon: <ChartNoAxesCombined className="w-5 h-5" />,
-  },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: <NotebookText className="w-5 h-5" />,
-  },
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: <Settings className="w-5 h-5" />,
-  },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Clients",   href: "/clients",   icon: Users },
+  { label: "Invoices",  href: "/invoices",  icon: FileText },
+  { label: "Vendors",   href: "/vendors",   icon: Store },
+  { label: "Cashflow",  href: "/cashflow",  icon: ChartNoAxesCombined },
+  { label: "Reports",   href: "/reports",   icon: NotebookText },
+  { label: "Settings",  href: "/settings",  icon: Settings },
 ];
 
 interface SidebarProps {
@@ -76,19 +45,17 @@ interface SidebarProps {
 
 export default function SidebarNew({ onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [user, setUser] = useState<StoredUser>(null);
+  const [user, setUser]       = useState<StoredUser>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       const stored = localStorage.getItem("user");
-      if (!stored) return;
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        // user stays null
+      if (stored) {
+        try { setUser(JSON.parse(stored)); } catch {}
       }
+      setMounted(true);
     }, 0);
-
     return () => window.clearTimeout(id);
   }, []);
 
@@ -100,87 +67,119 @@ export default function SidebarNew({ onClose }: SidebarProps) {
       })
     : allNavItems;
 
-  const isActive = (href: string) => {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) =>
+    href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? "U";
 
   return (
-    <aside className="flex h-full w-full flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center justify-between border-b border-border px-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
+    <aside className="flex h-full w-full flex-col bg-card border-r border-border">
+
+      {/* ── Brand header ───────────────────────────────────────────────── */}
+      <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
             <Cable className="w-4 h-4 text-white" />
           </div>
-          <span className="text-sm font-bold tracking-tight text-foreground">
-            CashFlow
-          </span>
+          <div className="leading-none">
+            <span className="block text-sm font-bold tracking-tight text-foreground">
+              CashFlow
+            </span>
+            <span className="block text-[10px] text-muted-foreground mt-0.5">
+              Command
+            </span>
+          </div>
         </div>
 
         {onClose && (
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition lg:hidden cursor-pointer"
             aria-label="Close sidebar"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-muted hover:text-foreground lg:hidden"
           >
-            <CircleX className="w-5.5 h-5.5 text-gray-400 hover:text-primary" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => {
+      {/* ── Navigation ─────────────────────────────────────────────────── */}
+      <nav className="flex-1 overflow-y-auto hide-scrollbar px-3 py-4 space-y-0.5">
+        {navItems.map((item, idx) => {
           const active = isActive(item.href);
+          const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onClose}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                active
-                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+              style={{
+                transitionDelay: mounted ? `${idx * 35}ms` : "0ms",
+              }}
+              className={`
+                group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+                transition-all duration-200 overflow-hidden
+                ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
+                ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground hover:translate-x-0.5"
+                }
+              `}
             >
-              <span
-                className={`w-5 h-5 ${active ? "text-primary-foreground" : "text-muted-foreground"}`}
-              >
-                {item.icon}
-              </span>
-              <span className="text-md">{item.label}</span>
+              {/* Subtle shimmer on active item */}
+              {active && (
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/10 to-transparent" />
+              )}
+
+              <Icon
+                className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                  active ? "text-primary-foreground" : "group-hover:scale-110"
+                }`}
+              />
+              <span className="truncate">{item.label}</span>
+
+              {/* Active indicator dot */}
+              {active && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground/60 shrink-0" />
+              )}
             </Link>
           );
         })}
       </nav>
 
+      {/* ── Business switcher ──────────────────────────────────────────── */}
       <div className="border-t border-border">
         <BusinessSwitcher />
       </div>
 
-      <div className="px-3 py-3 border-t border-border shrink-0">
-        <div className="flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+      {/* ── User card ──────────────────────────────────────────────────── */}
+      <div
+        className={`px-3 py-3 border-t border-border transition-all duration-500 ${
+          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+        }`}
+        style={{ transitionDelay: mounted ? `${(navItems.length + 1) * 35}ms` : "0ms" }}
+      >
+        <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-2.5 border border-border/60">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary ring-2 ring-primary/10">
             {initial}
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-foreground">
+            <p className="truncate text-xs font-semibold text-foreground leading-tight">
               {user?.name ?? "User"}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {user?.business?.name ?? ""}
+            <p className="truncate text-[10px] text-muted-foreground mt-0.5 capitalize">
+              {user?.business?.role?.toLowerCase() ?? user?.business?.name ?? ""}
             </p>
           </div>
 
           <button
             onClick={logout}
             title="Sign out"
-            className="shrink-0 text-muted-foreground transition hover:text-destructive"
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive"
           >
-            <LogOut className="w-4 h-4 " />
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

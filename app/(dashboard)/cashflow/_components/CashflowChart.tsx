@@ -1,239 +1,250 @@
 "use client";
 
+import { useMemo } from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  Cell,
+  ComposedChart, Bar, Line,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { CashflowDay } from "@/types/cashflow";
 
+// ── Palette ───────────────────────────────────────────────────────────────────
+const C = {
+  inflow:          "hsl(221,83%,53%)",
+  inflowRecurring: "hsl(221,83%,75%)",
+  outflow:         "hsl(258,90%,66%)",
+  outflowRecurring:"hsl(258,90%,82%)",
+  balance:         "hsl(173,80%,40%)",
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
-  n >= 100000
-    ? "₹" + (n / 100000).toFixed(1) + "L"
-    : n >= 1000
-      ? "₹" + (n / 1000).toFixed(0) + "K"
-      : "₹" + n;
+  n >= 10_000_000 ? `₹${(n / 10_000_000).toFixed(1)}Cr`
+  : n >= 100_000  ? `₹${(n / 100_000).toFixed(1)}L`
+  : n >= 1_000    ? `₹${(n / 1_000).toFixed(0)}K`
+  : `₹${Math.round(Math.abs(n))}`;
 
 const fmtFull = (n: number) =>
-  "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const dayLabel = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
-const dateKey = (d: Date): string => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-// Tooltip
-type CustomTooltipPayloadItem = {
-  payload: {
-    raw: CashflowDay;
-  };
+// ── Data builder (computes running balance) ───────────────────────────────────
+type ChartRow = {
+  date: string; label: string;
+  expectedIn: number; projectedIn: number;
+  expectedOut: number; projectedOut: number;
+  runningBalance: number; isToday: boolean;
 };
 
-type CustomTooltipProps = {
-  active?: boolean;
-  payload?: CustomTooltipPayloadItem[];
-};
+function buildData(timeline: CashflowDay[], today: string): ChartRow[] {
+  let bal = 0;
+  return timeline.map((d) => {
+    bal += (d.expectedIn + d.projectedIn) - (d.expectedOut + d.projectedOut);
+    return {
+      date: d.date,
+      label: dayLabel(d.date),
+      expectedIn:   d.expectedIn,
+      projectedIn:  d.projectedIn,
+      expectedOut:  d.expectedOut,
+      projectedOut: d.projectedOut,
+      runningBalance: bal,
+      isToday: d.date === today,
+    };
+  });
+}
 
-const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+type TProps = { active?: boolean; payload?: { payload: ChartRow }[] };
+
+const CustomTooltip = ({ active, payload }: TProps) => {
   if (!active || !payload?.length) return null;
-  const day: CashflowDay = payload[0].payload.raw;
-  const net =
-    day.expectedIn + day.projectedIn - (day.expectedOut + day.projectedOut);
+  const r = payload[0].payload;
+  const dayNet = (r.expectedIn + r.projectedIn) - (r.expectedOut + r.projectedOut);
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-lg p-3 text-sm min-w-52">
-      <p className="font-semibold text-foreground mb-2">{dayLabel(day.date)}</p>
+    <div className="bg-card border border-border rounded-xl shadow-lg p-3.5 min-w-56 text-xs">
+      <p className="font-semibold text-foreground mb-3 text-[13px]">{dayLabel(r.date)}</p>
 
-      {day.expectedIn > 0 && (
-        <div className="flex justify-between gap-4 text-xs py-0.5">
-          <span className="text-muted-foreground">Expected in</span>
-          <span className="font-medium text-primary">
-            {fmtFull(day.expectedIn)}
-          </span>
-        </div>
-      )}
-      {day.projectedIn > 0 && (
-        <div className="flex justify-between gap-4 text-xs py-0.5">
-          <span className="text-muted-foreground">Projected in</span>
-          <span className="font-medium text-primary/60">
-            {fmtFull(day.projectedIn)}
-          </span>
-        </div>
-      )}
-      {day.expectedOut > 0 && (
-        <div className="flex justify-between gap-4 text-xs py-0.5">
-          <span className="text-muted-foreground">Expected out</span>
-          <span className="font-medium text-status-overdue-foreground">
-            {fmtFull(day.expectedOut)}
-          </span>
-        </div>
-      )}
-      {day.projectedOut > 0 && (
-        <div className="flex justify-between gap-4 text-xs py-0.5">
-          <span className="text-muted-foreground">Projected out</span>
-          <span className="font-medium text-status-overdue-foreground/60">
-            {fmtFull(day.projectedOut)}
-          </span>
+      {(r.expectedIn > 0 || r.projectedIn > 0) && (
+        <div className="mb-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Inflows</p>
+          {r.expectedIn > 0 && (
+            <div className="flex justify-between gap-4 py-0.5">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.inflow }} />
+                Confirmed
+              </span>
+              <span className="font-semibold tabular-nums" style={{ color: C.inflow }}>+{fmtFull(r.expectedIn)}</span>
+            </div>
+          )}
+          {r.projectedIn > 0 && (
+            <div className="flex justify-between gap-4 py-0.5">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.inflowRecurring }} />
+                Recurring
+              </span>
+              <span className="font-semibold tabular-nums" style={{ color: C.inflowRecurring }}>+{fmtFull(r.projectedIn)}</span>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="flex justify-between gap-4 text-xs pt-2 mt-1 border-t border-border">
-        <span className="font-semibold text-foreground">Net</span>
-        <span
-          className={`font-bold ${net >= 0 ? "text-status-paid-foreground" : "text-status-overdue-foreground"}`}
-        >
-          {net >= 0 ? "+" : ""}
-          {fmtFull(net)}
-        </span>
+      {(r.expectedOut > 0 || r.projectedOut > 0) && (
+        <div className="mb-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Outflows</p>
+          {r.expectedOut > 0 && (
+            <div className="flex justify-between gap-4 py-0.5">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.outflow }} />
+                Confirmed
+              </span>
+              <span className="font-semibold tabular-nums" style={{ color: C.outflow }}>-{fmtFull(r.expectedOut)}</span>
+            </div>
+          )}
+          {r.projectedOut > 0 && (
+            <div className="flex justify-between gap-4 py-0.5">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.outflowRecurring }} />
+                Recurring
+              </span>
+              <span className="font-semibold tabular-nums" style={{ color: C.outflowRecurring }}>-{fmtFull(r.projectedOut)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="border-t border-border pt-2 space-y-1">
+        <div className="flex justify-between gap-4">
+          <span className="text-muted-foreground">Day net</span>
+          <span className={`font-bold tabular-nums ${dayNet >= 0 ? "text-chart-2" : "text-chart-3"}`}>
+            {dayNet >= 0 ? "+" : ""}{fmtFull(dayNet)}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span className="text-muted-foreground">Running balance</span>
+          <span className="font-bold tabular-nums" style={{ color: C.balance }}>
+            {r.runningBalance >= 0 ? "+" : ""}{fmtFull(r.runningBalance)}
+          </span>
+        </div>
       </div>
     </div>
   );
 };
 
-// Chart
-
+// ── Chart ─────────────────────────────────────────────────────────────────────
 interface Props {
   timeline: CashflowDay[];
+  showInflow?: boolean;
+  showOutflow?: boolean;
+  showRecurring?: boolean;
+  showBalance?: boolean;
 }
 
-export default function CashflowChart({ timeline }: Props) {
-  const today = dateKey(new Date());
+export default function CashflowChart({
+  timeline,
+  showInflow   = true,
+  showOutflow  = true,
+  showRecurring = true,
+  showBalance  = true,
+}: Props) {
+  const today = todayKey();
+  const data  = useMemo(() => buildData(timeline, today), [timeline, today]);
 
-  //raw day for tooltip
-  const data = timeline.map((d) => ({
-    label: dayLabel(d.date),
-    expectedIn: d.expectedIn,
-    projectedIn: d.projectedIn,
-    expectedOut: d.expectedOut,
-    projectedOut: d.projectedOut,
-    isToday: d.date === today,
-    raw: d,
-  }));
+  const todayEntry   = data.find((d) => d.isToday);
+  const todayLbl     = todayEntry?.label;
+
+  // Determine bar top radius based on whether projected/recurring bars will appear on top
+  const inTopRadius  = showInflow && showRecurring ? 0 : 4;
+  const outTopRadius = showOutflow && showRecurring ? 0 : 4;
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart
-        data={data}
-        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        barGap={2}
-      >
-        <defs>
-          <pattern
-            id="projIn"
-            patternUnits="userSpaceOnUse"
-            width="6"
-            height="6"
-            patternTransform="rotate(45)"
-          >
-            <rect width="6" height="6" fill="hsl(221 83% 53% / 0.1)" />
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="6"
-              stroke="hsl(221 83% 53% / 0.6)"
-              strokeWidth="2"
-            />
-          </pattern>
-          <pattern
-            id="projOut"
-            patternUnits="userSpaceOnUse"
-            width="6"
-            height="6"
-            patternTransform="rotate(45)"
-          >
-            <rect width="6" height="6" fill="hsl(0 72% 51% / 0.08)" />
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="6"
-              stroke="hsl(0 72% 51% / 0.5)"
-              strokeWidth="2"
-            />
-          </pattern>
-        </defs>
+    <ResponsiveContainer width="100%" height={320}>
+      <ComposedChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }} barGap={4} barCategoryGap="30%">
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.6} />
 
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="hsl(var(--border))"
-          vertical={false}
-        />
         <XAxis
           dataKey="label"
           tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-          interval="preserveStartEnd"
-          minTickGap={20}
+          axisLine={false} tickLine={false}
+          interval="preserveStartEnd" minTickGap={24}
         />
         <YAxis
           tickFormatter={fmt}
           tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-          axisLine={false}
-          tickLine={false}
-          width={48}
-        />
-        <Tooltip
-          content={<CustomTooltip />}
-          cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
-        />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+          axisLine={false} tickLine={false}
+          width={52}
         />
 
-        {/* Inflow stack: actual + projected */}
-        <Bar
-          dataKey="expectedIn"
-          stackId="in"
-          name="Expected In"
-          fill="hsl(221 83% 53%)"
-          radius={[0, 0, 0, 0]}
-        >
-          {data.map((d, i) => (
-            <Cell
-              key={i}
-              fill={d.isToday ? "hsl(221 83% 45%)" : "hsl(221 83% 53%)"}
-            />
-          ))}
-        </Bar>
-        <Bar
-          dataKey="projectedIn"
-          stackId="in"
-          name="Projected In"
-          fill="url(#projIn)"
-          radius={[3, 3, 0, 0]}
-        />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.35)", radius: 6 }} />
 
-        {/* Outflow stack: actual + projected */}
-        <Bar
-          dataKey="expectedOut"
-          stackId="out"
-          name="Expected Out"
-          fill="hsl(0 72% 51%)"
-          radius={[0, 0, 0, 0]}
-        />
-        <Bar
-          dataKey="projectedOut"
-          stackId="out"
-          name="Projected Out"
-          fill="url(#projOut)"
-          radius={[3, 3, 0, 0]}
-        />
-      </BarChart>
+        {/* Zero reference */}
+        <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1.5} />
+
+        {/* Today marker */}
+        {todayLbl && (
+          <ReferenceLine
+            x={todayLbl}
+            stroke="hsl(var(--primary))"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+            label={{ value: "Today", position: "insideTopRight", fontSize: 10, fill: "hsl(var(--primary))", fontWeight: 700, dy: -2 }}
+          />
+        )}
+
+        {/* ── Inflow bars ── */}
+        {showInflow && (
+          <Bar
+            dataKey="expectedIn" stackId="in" name="Confirmed In"
+            fill={C.inflow}
+            radius={[inTopRadius, inTopRadius, 0, 0]}
+            isAnimationActive animationDuration={700} animationEasing="ease-out"
+          />
+        )}
+        {showInflow && showRecurring && (
+          <Bar
+            dataKey="projectedIn" stackId="in" name="Recurring In"
+            fill={C.inflowRecurring}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive animationDuration={700} animationEasing="ease-out"
+          />
+        )}
+
+        {/* ── Outflow bars ── */}
+        {showOutflow && (
+          <Bar
+            dataKey="expectedOut" stackId="out" name="Confirmed Out"
+            fill={C.outflow}
+            radius={[outTopRadius, outTopRadius, 0, 0]}
+            isAnimationActive animationDuration={700} animationEasing="ease-out"
+          />
+        )}
+        {showOutflow && showRecurring && (
+          <Bar
+            dataKey="projectedOut" stackId="out" name="Recurring Out"
+            fill={C.outflowRecurring}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive animationDuration={700} animationEasing="ease-out"
+          />
+        )}
+
+        {/* ── Running balance line ── */}
+        {showBalance && (
+          <Line
+            type="monotone" dataKey="runningBalance" name="Running Balance"
+            stroke={C.balance} strokeWidth={2.5}
+            dot={false}
+            activeDot={{ r: 5, strokeWidth: 0, fill: C.balance }}
+            isAnimationActive animationDuration={1000} animationEasing="ease-out"
+          />
+        )}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
