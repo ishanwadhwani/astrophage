@@ -1,4 +1,4 @@
-import { axiosInstance } from "./axiosInstance";
+import { axiosInstance, invalidateCache } from "./axiosInstance";
 import { Business, BankDetails } from "@/types/business";
 import { BusinessSummary } from "@/types/auth";
 
@@ -21,6 +21,7 @@ export const updateBusiness = async (
   data: Partial<Business>,
 ): Promise<Business> => {
   const res = await axiosInstance.put<Business>(`/api/businesses/${id}`, data);
+  invalidateCache(`/api/businesses/${id}`);
   return res.data;
 };
 
@@ -36,6 +37,7 @@ export const saveBankDetails = async (
     `/api/businesses/${businessId}/bank-details`,
     data,
   );
+  invalidateCache(`/api/businesses/${businessId}`);
   return res.data;
 };
 
@@ -56,5 +58,6 @@ export const updateInvoicePrefix = async (
     `/api/businesses/${businessId}/prefix`,
     { invoicePrefix },
   );
+  invalidateCache(`/api/businesses/${businessId}`);
   return res.data;
 };

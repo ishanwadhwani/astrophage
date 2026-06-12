@@ -1,4 +1,4 @@
-import { axiosInstance } from "./axiosInstance";
+import { axiosInstance, invalidateCache } from "./axiosInstance";
 import {
   Vendor,
   Bill,
@@ -21,6 +21,7 @@ export const createVendor = async (
   payload: CreateVendorPayload,
 ): Promise<Vendor> => {
   const res = await axiosInstance.post<Vendor>("/api/vendors", payload);
+  invalidateCache("/api/vendors");
   return res.data;
 };
 
@@ -37,6 +38,7 @@ export const fetchVendorDetail = async (
 
 export const deleteVendor = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/vendors/${id}`);
+  invalidateCache("/api/vendors");
 };
 
 export const fetchBills = async (businessId: string): Promise<Bill[]> => {
@@ -48,6 +50,7 @@ export const fetchBills = async (businessId: string): Promise<Bill[]> => {
 
 export const createBill = async (payload: CreateBillPayload): Promise<Bill> => {
   const res = await axiosInstance.post<Bill>("/api/vendors/bills", payload);
+  invalidateCache();
   return res.data;
 };
 
@@ -55,11 +58,13 @@ export const recordBillPayment = async (
   payload: RecordBillPaymentPayload,
 ): Promise<{ payment: unknown; billStatus: string; outstanding: number }> => {
   const res = await axiosInstance.post("/api/vendors/bills/payments", payload);
+  invalidateCache();
   return res.data;
 };
 
 export const deleteBill = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/vendors/bills/${id}`);
+  invalidateCache();
 };
 
 export const fetchRecurringBills = async (
@@ -79,6 +84,7 @@ export const createRecurringBill = async (
     "/api/vendors/recurring",
     payload,
   );
+  invalidateCache();
   return res.data;
 };
 
@@ -88,9 +94,11 @@ export const toggleRecurringBill = async (
   const res = await axiosInstance.put<RecurringBill>(
     `/api/vendors/recurring/${id}`,
   );
+  invalidateCache("/api/vendors");
   return res.data;
 };
 
 export const deleteRecurringBill = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/vendors/recurring/${id}`);
+  invalidateCache("/api/vendors");
 };

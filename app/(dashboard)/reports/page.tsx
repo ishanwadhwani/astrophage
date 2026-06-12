@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 
 import DataTable, { TableColumn } from "@/components/shared/DataTable";
@@ -16,184 +16,154 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { markInvoiceGSTFiled } from "@/lib/invoices";
 import PermissionGate from "@/components/ui/PermissionGate";
 import {
-  Download,
-  ArrowDownUp,
-  ReceiptIndianRupee,
-  Sheet,
-  Calendar,
-  ArrowRight,
-  Loader2,
+  Download, ArrowDownUp, ReceiptIndianRupee, Sheet,
+  Calendar, ArrowRight, BadgeCheck, TrendingDown,
+  AlertCircle, Receipt, Percent, Calculator,
+  IndianRupee, FileBarChart, ChevronRight,
 } from "lucide-react";
 import { EmptyCell } from "@/components/ui/EmptyCell";
 import { exportToCSV } from "@/lib/csv";
-import { Button } from "@/components/ui/Button";
 
 type ReportType = "gst" | "vendor";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 const fmt = (n: number) =>
-  "₹" +
-  n.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 const getPreset = (preset: string): { from: string; to: string } => {
-  const now = new Date();
-  const year = now.getFullYear();
+  const now   = new Date();
+  const year  = now.getFullYear();
   const month = now.getMonth();
-
-  const iso = (d: Date) => d.toISOString().split("T")[0];
+  const iso   = (d: Date) => d.toISOString().split("T")[0];
 
   switch (preset) {
     case "this_month":
-      return {
-        from: iso(new Date(year, month, 1)),
-        to: iso(new Date(year, month + 1, 0)),
-      };
+      return { from: iso(new Date(year, month, 1)),     to: iso(new Date(year, month + 1, 0)) };
     case "last_month":
-      return {
-        from: iso(new Date(year, month - 1, 1)),
-        to: iso(new Date(year, month, 0)),
-      };
+      return { from: iso(new Date(year, month - 1, 1)), to: iso(new Date(year, month, 0)) };
     case "this_quarter": {
       const q = Math.floor(month / 3);
-      return {
-        from: iso(new Date(year, q * 3, 1)),
-        to: iso(new Date(year, q * 3 + 3, 0)),
-      };
+      return { from: iso(new Date(year, q * 3, 1)),     to: iso(new Date(year, q * 3 + 3, 0)) };
     }
     case "this_fy": {
-      // Indian FY: Apr–Mar
       const fyStart = month >= 3 ? year : year - 1;
-      return {
-        from: iso(new Date(fyStart, 3, 1)),
-        to: iso(new Date(fyStart + 1, 2, 31)),
-      };
+      return { from: iso(new Date(fyStart, 3, 1)),      to: iso(new Date(fyStart + 1, 2, 31)) };
     }
     default:
-      return {
-        from: iso(new Date(year, month, 1)),
-        to: iso(now),
-      };
+      return { from: iso(new Date(year, month, 1)),     to: iso(now) };
   }
 };
 
 const PRESETS = [
-  { label: "This Month", value: "this_month" },
-  { label: "Last Month", value: "last_month" },
+  { label: "This Month",   value: "this_month"   },
+  { label: "Last Month",   value: "last_month"   },
   { label: "This Quarter", value: "this_quarter" },
-  { label: "This FY", value: "this_fy" },
+  { label: "This FY",      value: "this_fy"      },
 ];
 
-// CSV Export
-const exportCSV = (
-  invoices: GSTInvoiceRow[],
-  period: { from: string; to: string },
-) => {
+// ── CSV exports ───────────────────────────────────────────────────────────────
+
+const exportCSV = (invoices: GSTInvoiceRow[], period: { from: string; to: string }) => {
   const headers = [
-    "Invoice No",
-    "Invoice Date",
-    "Client",
-    "Client GSTIN",
-    "Place of Supply",
-    "Tax Type",
-    "Taxable Value",
-    "IGST",
-    "CGST",
-    "SGST",
-    "Total Tax",
-    "Total",
-    "Status",
-    "Filing Status",
-    "GST Filing Date",
+    "Invoice No","Invoice Date","Client","Client GSTIN","Place of Supply",
+    "Tax Type","Taxable Value","IGST","CGST","SGST","Total Tax","Total",
+    "Status","Filing Status","GST Filing Date",
   ];
-
   const rows = invoices.map((inv) => [
-    inv.number,
-    fmtDate(inv.invoiceDate),
-    inv.clientName,
-    inv.clientGstin,
-    inv.placeOfSupply,
-    inv.taxType === "IGST" ? "IGST" : "CGST+SGST",
-    inv.taxableValue.toFixed(2),
-    inv.igst.toFixed(2),
-    inv.cgst.toFixed(2),
-    inv.sgst.toFixed(2),
-    inv.totalTax.toFixed(2),
-    inv.total.toFixed(2),
-    inv.status,
-    inv.filingStatus,
-    inv.gstFilingDate ? fmtDate(inv.gstFilingDate) : "—",
+    inv.number, fmtDate(inv.invoiceDate), inv.clientName, inv.clientGstin,
+    inv.placeOfSupply, inv.taxType === "IGST" ? "IGST" : "CGST+SGST",
+    inv.taxableValue.toFixed(2), inv.igst.toFixed(2), inv.cgst.toFixed(2),
+    inv.sgst.toFixed(2), inv.totalTax.toFixed(2), inv.total.toFixed(2),
+    inv.status, inv.filingStatus, inv.gstFilingDate ? fmtDate(inv.gstFilingDate) : "",
   ]);
-
-  const csv = [headers, ...rows]
-    .map((r) => r.map((c) => `"${c}"`).join(","))
-    .join("\n");
-
+  const csv  = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `GST-Report-${period.from}-to-${period.to}.csv`;
-  a.click();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = `GST-Report-${period.from}-to-${period.to}.csv`; a.click();
   URL.revokeObjectURL(url);
 };
 
-// CSV Vendor details export
 const exportVendorCSV = (report: VendorSpendingReport) => {
   exportToCSV(
     "vendor-spending",
-    ["Vendor", "GSTIN", "Bills", "Total Billed", "Paid", "Outstanding"],
+    ["Vendor","GSTIN","Bills","Total Billed","Paid","Outstanding"],
     report.vendors.map((v) => [
-      v.vendorName,
-      v.gstin ?? "",
-      v.billCount,
-      v.totalBilled.toFixed(2),
-      v.totalPaid.toFixed(2),
-      v.outstanding.toFixed(2),
+      v.vendorName, v.gstin ?? "", v.billCount,
+      v.totalBilled.toFixed(2), v.totalPaid.toFixed(2), v.outstanding.toFixed(2),
     ]),
   );
 };
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function StatCard({
+  label, value, icon: Icon, iconBg, iconColor, delay, mounted,
+}: {
+  label: string; value: string;
+  icon: React.ElementType; iconBg: string; iconColor: string;
+  delay: number; mounted: boolean;
+}) {
+  return (
+    <div
+      className={`bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 transition-all duration-500 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/5 ${
+        mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+      }`}
+      style={{ transitionDelay: mounted ? `${delay}ms` : "0ms" }}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+          <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+        </div>
+      </div>
+      <p className="text-xl font-bold text-foreground tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function ReportsPage() {
-  const user = getUser();
+  const user       = getUser();
   const businessId = user?.business?.id;
+  const today      = new Date().toISOString().split("T")[0];
+  const initial    = getPreset("this_month");
 
-  const today = new Date().toISOString().split("T")[0];
-  const initial = getPreset("this_month");
+  const [from,          setFrom]          = useState(initial.from);
+  const [to,            setTo]            = useState(initial.to);
+  const [preset,        setPreset]        = useState("this_month");
+  const [report,        setReport]        = useState<GSTReport | null>(null);
+  const [loading,       setLoading]       = useState(false);
+  const [fetched,       setFetched]       = useState(false);
+  const [filingFilter,  setFilingFilter]  = useState<"ALL" | "FILED" | "PENDING">("ALL");
+  const [sortOrder,     setSortOrder]     = useState<"desc" | "asc">("desc");
+  const [reportType,    setReportType]    = useState<ReportType>("gst");
+  const [vendorReport,  setVendorReport]  = useState<VendorSpendingReport | null>(null);
+  const [mounted,       setMounted]       = useState(false);
 
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
-  const [preset, setPreset] = useState("this_month");
-  const [report, setReport] = useState<GSTReport | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fetched, setFetched] = useState(false);
-  const [filingFilter, setFilingFilter] = useState<"ALL" | "FILED" | "PENDING">(
-    "ALL",
-  );
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
-  const [reportType, setReportType] = useState<ReportType>("gst");
-  const [vendorReport, setVendorReport] = useState<VendorSpendingReport | null>(
-    null,
-  );
+  useEffect(() => {
+    if (fetched) {
+      setMounted(false);
+      const id = setTimeout(() => setMounted(true), 60);
+      return () => clearTimeout(id);
+    }
+  }, [fetched, reportType]);
 
   const handlePreset = (value: string) => {
     setPreset(value);
     const p = getPreset(value);
-    setFrom(p.from);
-    setTo(p.to);
+    setFrom(p.from); setTo(p.to);
   };
 
   const handleFetch = async () => {
     if (!businessId) return;
     setLoading(true);
+    setMounted(false);
     try {
       if (reportType === "gst") {
         const data = await fetchGSTReport(businessId, from, to);
@@ -209,562 +179,473 @@ export default function ReportsPage() {
     }
   };
 
-  const filtered = useMemo(() => {
-    if (!report) return [];
-    return report.invoices
-      .filter(
-        (inv) => filingFilter === "ALL" || inv.filingStatus === filingFilter,
-      )
-      .sort((a, b) => {
-        const dateA = new Date(a.invoiceDate).getTime();
-        const dateB = new Date(b.invoiceDate).getTime();
-        return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
-      });
-  }, [report, filingFilter, sortOrder]);
-
-  const inputClass =
-    "px-3 py-2 bg-card border border-input rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all";
-
-  // VENDORS columns
-  const vendorColumns = useMemo<TableColumn<VendorSpendingRow>[]>(
-    () => [
-      {
-        key: "vendorName",
-        header: "Vendor",
-        render: (row) => (
-          <Link
-            href={`/vendors/${row.vendorId}`}
-            className="font-semibold text-foreground hover:text-primary transition"
-          >
-            {row.vendorName}
-          </Link>
-        ),
-      },
-      {
-        key: "gstin",
-        header: "GSTIN",
-        render: (row) => (
-          <span className="font-mono text-xs text-muted-foreground">
-            {row.gstin ?? <EmptyCell />}
-          </span>
-        ),
-      },
-      {
-        key: "billCount",
-        header: "Bills",
-        align: "right",
-        render: (row) => (
-          <span className="text-muted-foreground tabular-nums">
-            {row.billCount}
-          </span>
-        ),
-      },
-      {
-        key: "totalBilled",
-        header: "Total Billed",
-        align: "right",
-        render: (row) => (
-          <span className="font-medium text-foreground tabular-nums">
-            {fmt(row.totalBilled)}
-          </span>
-        ),
-      },
-      {
-        key: "totalPaid",
-        header: "Paid",
-        align: "right",
-        render: (row) => (
-          <span className="text-status-paid-foreground tabular-nums">
-            {fmt(row.totalPaid)}
-          </span>
-        ),
-      },
-      {
-        key: "outstanding",
-        header: "Outstanding",
-        align: "right",
-        render: (row) => (
-          <span
-            className={`font-semibold tabular-nums ${
-              row.outstanding > 0
-                ? "text-status-overdue-foreground"
-                : "text-status-paid-foreground"
-            }`}
-          >
-            {fmt(row.outstanding)}
-          </span>
-        ),
-      },
-    ],
-    [],
-  );
-
-  // GST Columns
-  const gstColumns = useMemo<TableColumn<GSTInvoiceRow>[]>(
-    () => [
-      {
-        key: "number",
-        header: "Invoice",
-        render: (row) => (
-          <Link
-            href={`/invoices/${row.id}`}
-            className="font-semibold text-foreground hover:text-primary transition"
-          >
-            #{row.number}
-          </Link>
-        ),
-      },
-      {
-        key: "invoiceDate",
-        header: "Date",
-        render: (row) => (
-          <span className="text-muted-foreground whitespace-nowrap">
-            {fmtDate(row.invoiceDate)}
-          </span>
-        ),
-      },
-      {
-        key: "clientName",
-        header: "Client",
-        render: (row) => (
-          <span className="text-muted-foreground">{row.clientName}</span>
-        ),
-      },
-      {
-        key: "clientGstin",
-        header: "GSTIN",
-        render: (row) => (
-          <span className="font-mono text-xs text-muted-foreground">
-            {row.clientGstin}
-          </span>
-        ),
-      },
-      {
-        key: "taxType",
-        header: "Tax Type",
-        render: (row) => (
-          <span
-            className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-              row.taxType === "IGST"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-purple-100 text-purple-700"
-            }`}
-          >
-            {row.taxType === "IGST" ? "IGST" : "CGST+SGST"}
-          </span>
-        ),
-      },
-      {
-        key: "taxableValue",
-        header: "Taxable",
-        align: "right",
-        render: (row) => (
-          <span className="text-muted-foreground tabular-nums">
-            {fmt(row.taxableValue)}
-          </span>
-        ),
-      },
-      {
-        key: "igst",
-        header: "IGST",
-        align: "right",
-        width: "108px",
-        render: (row) => (
-          <span
-            className={`tabular-nums ${row.igst > 0 ? "text-muted-foreground" : "text-border"}`}
-          >
-            {row.igst > 0 ? fmt(row.igst) : <EmptyCell />}
-          </span>
-        ),
-      },
-      {
-        key: "cgst",
-        header: "CGST",
-        align: "right",
-        width: "108px",
-        render: (row) => (
-          <span
-            className={`tabular-nums ${row.cgst > 0 ? "text-muted-foreground" : "text-border"}`}
-          >
-            {row.cgst > 0 ? fmt(row.cgst) : "—"}
-          </span>
-        ),
-      },
-      {
-        key: "sgst",
-        header: "SGST",
-        align: "right",
-        width: "108px",
-        render: (row) => (
-          <span
-            className={`tabular-nums ${row.sgst > 0 ? "text-muted-foreground" : "text-border"}`}
-          >
-            {row.sgst > 0 ? fmt(row.sgst) : "—"}
-          </span>
-        ),
-      },
-      {
-        key: "total",
-        header: "Total",
-        align: "right",
-        render: (row) => (
-          <span className="font-semibold text-foreground tabular-nums whitespace-nowrap">
-            {fmt(row.total)}
-          </span>
-        ),
-      },
-      {
-        key: "filing",
-        header: "Filing",
-        align: "center",
-        width: "120px",
-        render: (row) =>
-          row.filingStatus === "FILED" ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-status-paid text-status-paid-foreground">
-                Filed
-              </span>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {fmtDate(row.gstFilingDate!)}
-              </span>
-            </div>
-          ) : (
-            <PermissionGate permission="report:gst_file">
-              <button
-                onClick={async () => {
-                  try {
-                    await markInvoiceGSTFiled(row.id);
-                    setReport((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            invoices: prev.invoices.map((i) =>
-                              i.id === row.id
-                                ? {
-                                    ...i,
-                                    filingStatus: "FILED" as const,
-                                    gstFilingDate: new Date().toISOString(),
-                                  }
-                                : i,
-                            ),
-                          }
-                        : prev,
-                    );
-                  } catch {}
-                }}
-                className="px-2 py-1 rounded-full text-xs font-semibold bg-status-pending text-status-pending-foreground hover:opacity-80 transition whitespace-nowrap cursor-pointer"
-              >
-                Mark Filed
-              </button>
-            </PermissionGate>
-          ),
-      },
-    ],
-    [setReport],
-  );
-
   const handleReportTypeChange = (type: ReportType) => {
     setReportType(type);
     setFetched(false);
+    setMounted(false);
     setReport(null);
     setVendorReport(null);
   };
+
+  const filtered = useMemo(() => {
+    if (!report) return [];
+    return report.invoices
+      .filter((inv) => filingFilter === "ALL" || inv.filingStatus === filingFilter)
+      .sort((a, b) => {
+        const da = new Date(a.invoiceDate).getTime();
+        const db = new Date(b.invoiceDate).getTime();
+        return sortOrder === "desc" ? db - da : da - db;
+      });
+  }, [report, filingFilter, sortOrder]);
+
+  // ── Table columns ───────────────────────────────────────────────────────────
+
+  const vendorColumns = useMemo<TableColumn<VendorSpendingRow>[]>(() => [
+    {
+      key: "vendorName",
+      header: "Vendor",
+      render: (row) => (
+        <Link href={`/vendors/${row.vendorId}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+          {row.vendorName}
+        </Link>
+      ),
+    },
+    {
+      key: "gstin",
+      header: "GSTIN",
+      render: (row) =>
+        row.gstin
+          ? <span className="font-mono text-xs text-muted-foreground">{row.gstin}</span>
+          : <EmptyCell />,
+    },
+    {
+      key: "billCount",
+      header: "Bills",
+      align: "right",
+      render: (row) => (
+        <span className="inline-flex items-center justify-center min-w-6 px-2 py-0.5 rounded-md bg-muted text-xs font-semibold text-muted-foreground tabular-nums">
+          {row.billCount}
+        </span>
+      ),
+    },
+    {
+      key: "totalBilled",
+      header: "Total Billed",
+      align: "right",
+      render: (row) => <span className="font-medium text-foreground tabular-nums">{fmt(row.totalBilled)}</span>,
+    },
+    {
+      key: "totalPaid",
+      header: "Paid",
+      align: "right",
+      render: (row) => <span className="text-chart-2 font-semibold tabular-nums">{fmt(row.totalPaid)}</span>,
+    },
+    {
+      key: "outstanding",
+      header: "Outstanding",
+      align: "right",
+      render: (row) => (
+        <span className={`font-semibold tabular-nums ${row.outstanding > 0 ? "text-chart-3" : "text-chart-2"}`}>
+          {fmt(row.outstanding)}
+        </span>
+      ),
+    },
+  ], []);
+
+  const TaxTypeBadge = ({ taxType }: { taxType: string }) => (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${
+      taxType === "IGST"
+        ? "bg-chart-1/10 text-chart-1 border-chart-1/20"
+        : "bg-chart-3/10 text-chart-3 border-chart-3/20"
+    }`}>
+      {taxType === "IGST" ? "IGST" : "CGST+SGST"}
+    </span>
+  );
+
+  const gstColumns = useMemo<TableColumn<GSTInvoiceRow>[]>(() => [
+    {
+      key: "number",
+      header: "Invoice",
+      render: (row) => (
+        <Link href={`/invoices/${row.id}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+          #{row.number}
+        </Link>
+      ),
+    },
+    {
+      key: "invoiceDate",
+      header: "Date",
+      render: (row) => <span className="text-muted-foreground whitespace-nowrap tabular-nums">{fmtDate(row.invoiceDate)}</span>,
+    },
+    {
+      key: "clientName",
+      header: "Client",
+      render: (row) => <span className="text-foreground">{row.clientName}</span>,
+    },
+    {
+      key: "clientGstin",
+      header: "GSTIN",
+      render: (row) =>
+        row.clientGstin
+          ? <span className="font-mono text-xs text-muted-foreground">{row.clientGstin}</span>
+          : <EmptyCell />,
+    },
+    {
+      key: "taxType",
+      header: "Tax Type",
+      render: (row) => <TaxTypeBadge taxType={row.taxType} />,
+    },
+    {
+      key: "taxableValue",
+      header: "Taxable",
+      align: "right",
+      render: (row) => <span className="text-muted-foreground tabular-nums">{fmt(row.taxableValue)}</span>,
+    },
+    {
+      key: "igst",
+      header: "IGST",
+      align: "right",
+      width: "108px",
+      render: (row) =>
+        row.igst > 0
+          ? <span className="text-muted-foreground tabular-nums">{fmt(row.igst)}</span>
+          : <EmptyCell />,
+    },
+    {
+      key: "cgst",
+      header: "CGST",
+      align: "right",
+      width: "108px",
+      render: (row) =>
+        row.cgst > 0
+          ? <span className="text-muted-foreground tabular-nums">{fmt(row.cgst)}</span>
+          : <EmptyCell />,
+    },
+    {
+      key: "sgst",
+      header: "SGST",
+      align: "right",
+      width: "108px",
+      render: (row) =>
+        row.sgst > 0
+          ? <span className="text-muted-foreground tabular-nums">{fmt(row.sgst)}</span>
+          : <EmptyCell />,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right",
+      render: (row) => <span className="font-semibold text-foreground tabular-nums whitespace-nowrap">{fmt(row.total)}</span>,
+    },
+    {
+      key: "filing",
+      header: "Filing",
+      align: "center",
+      width: "130px",
+      render: (row) =>
+        row.filingStatus === "FILED" ? (
+          <div className="flex flex-col items-center gap-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-status-paid text-status-paid-foreground border border-status-paid-foreground/20">
+              <BadgeCheck className="w-3 h-3" />Filed
+            </span>
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+              {fmtDate(row.gstFilingDate!)}
+            </span>
+          </div>
+        ) : (
+          <PermissionGate permission="report:gst_file">
+            <button
+              onClick={async () => {
+                try {
+                  await markInvoiceGSTFiled(row.id);
+                  setReport((prev) =>
+                    prev ? {
+                      ...prev,
+                      invoices: prev.invoices.map((i) =>
+                        i.id === row.id
+                          ? { ...i, filingStatus: "FILED" as const, gstFilingDate: new Date().toISOString() }
+                          : i,
+                      ),
+                    } : prev,
+                  );
+                } catch {}
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-status-pending text-status-pending-foreground border border-status-pending-foreground/20 hover:opacity-80 transition-opacity whitespace-nowrap cursor-pointer"
+            >
+              Mark Filed
+            </button>
+          </PermissionGate>
+        ),
+    },
+  ], [setReport]);
+
+  // ── GST stat cards config ───────────────────────────────────────────────────
+
+  const gstCards = report ? [
+    { label: "Taxable Value", value: fmt(report.summary.totalTaxableValue), icon: Receipt,      iconBg: "bg-chart-1/10",  iconColor: "text-chart-1"  },
+    { label: "Total IGST",    value: fmt(report.summary.totalIGST),         icon: Percent,      iconBg: "bg-chart-2/10",  iconColor: "text-chart-2"  },
+    { label: "Total CGST",    value: fmt(report.summary.totalCGST),         icon: Percent,      iconBg: "bg-chart-3/10",  iconColor: "text-chart-3"  },
+    { label: "Total SGST",    value: fmt(report.summary.totalSGST),         icon: Percent,      iconBg: "bg-chart-4/10",  iconColor: "text-chart-4"  },
+    { label: "Total Tax",     value: fmt(report.summary.totalTax),          icon: Calculator,   iconBg: "bg-muted",       iconColor: "text-muted-foreground" },
+    { label: "Grand Total",   value: fmt(report.summary.grandTotal),        icon: IndianRupee,  iconBg: "bg-primary/10",  iconColor: "text-primary"  },
+  ] : [];
+
+  const vendorCards = vendorReport ? [
+    { label: "Total Spent",   value: fmt(vendorReport.summary.totalSpent),       icon: TrendingDown,  iconBg: "bg-chart-3/10", iconColor: "text-chart-3" },
+    { label: "Total Paid",    value: fmt(vendorReport.summary.totalPaid),        icon: BadgeCheck,    iconBg: "bg-chart-2/10", iconColor: "text-chart-2" },
+    { label: "Outstanding",   value: fmt(vendorReport.summary.totalOutstanding), icon: AlertCircle,
+      iconBg: vendorReport.summary.totalOutstanding > 0 ? "bg-chart-4/10" : "bg-muted",
+      iconColor: vendorReport.summary.totalOutstanding > 0 ? "text-chart-4" : "text-muted-foreground",
+    },
+  ] : [];
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <PermissionGate
       permission="report:view"
       fallback={
-        <div className="text-center py-16 text-muted-foreground">
-          You don&apos;t have access to reports.
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+            <FileBarChart className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">You don&apos;t have access to reports.</p>
         </div>
       }
     >
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">GST Report</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Summary of all GST invoices for filing
-          </p>
-        </div>
 
-        {/* tab switchers */}
-        <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
-          <button
-            onClick={() => handleReportTypeChange("gst")}
-            className={`flex gap-2 items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              reportType === "gst"
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Sheet />
-            Invoice Report
-          </button>
-          <button
-            onClick={() => handleReportTypeChange("vendor")}
-            className={`flex gap-2 items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              reportType === "vendor"
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <ReceiptIndianRupee />
-            Vendor Bills
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-primary/80 border border-border rounded-2xl p-4 sm:p-5 shadow-sm space-y-5 md:space-y-0 md:flex md:items-center md:justify-between md:gap-4">
-          {/* Quick filters */}
-          <div className="flex flex-col gap-2">
-            <p className="ml-1 text-primary-foreground font-normal">
-              Quick Filters
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {reportType === "gst"
+                ? "GST invoice summary for filing and compliance"
+                : "Vendor spending analysis by period"}
             </p>
-            <div className="flex flex-wrap xl:flex-row items-center gap-2">
-              {PRESETS.map((p) => {
-                const isActive = preset === p.value;
-                return (
-                  <button
-                    key={p.value}
-                    onClick={() => handlePreset(p.value)}
-                    // size="lg"
-                    className={`flex items-center gap-2 px-6 py-3.5 text-sm rounded-xl font-semibold transition-all duration-200 shadow-sm border ${
-                      isActive
-                        ? "bg-muted text-primary shadow-muted/10"
-                        : "bg-muted text-foreground hover:text-foreground/80 hover:bg-muted/90 border-transparent"
-                    }`}
-                  >
-                    <Calendar
-                      className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted-foreground/70"}`}
-                      strokeWidth={2.5}
-                    />
-                    {p.label}
-                  </button>
-                );
-              })}
+          </div>
+
+          {/* Tab switcher */}
+          <div className="flex items-center gap-1 bg-muted rounded-xl p-1 shrink-0">
+            <button
+              onClick={() => handleReportTypeChange("gst")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                reportType === "gst"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sheet className="w-4 h-4" />
+              Invoice Report
+            </button>
+            <button
+              onClick={() => handleReportTypeChange("vendor")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                reportType === "vendor"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ReceiptIndianRupee className="w-4 h-4" />
+              Vendor Bills
+            </button>
+          </div>
+        </div>
+
+        {/* ── Filter card ─────────────────────────────────────────────────────── */}
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+          {/* Quick presets */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</p>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => handlePreset(p.value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                    preset === p.value
+                      ? "bg-primary text-primary-foreground border-transparent shadow-sm"
+                      : "bg-muted border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  <Calendar className={`w-3 h-3 ${preset === p.value ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                  {p.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Date range selection */}
-          <div className="flex flex-col gap-2">
-            <p className="ml-1 text-primary-foreground font-normal">
-              Date Filters
-            </p>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-2 bg-muted/40 border border-border p-1.5 rounded-2xl w-full sm:w-auto justify-between sm:justify-start">
-                <div className="relative flex items-center gap-2.5 px-3 py-1.5 bg-background border border-input/60 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all flex-1 sm:flex-initial">
-                  <Calendar
-                    className="w-4 h-4 text-muted-foreground shrink-0"
-                    strokeWidth={2}
-                  />
-                  <div className="flex flex-col text-left">
-                    <span className="text-[9px] font-bold text-muted-foreground/80 uppercase tracking-wider leading-tight">
-                      From
-                    </span>
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* Date range + generate */}
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+            <div className="flex-1 flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Custom Range</p>
+              <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl p-1.5 w-fit">
+                <div className="relative flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80 leading-tight">From</span>
                     <input
-                      type="date"
-                      value={from}
-                      max={today}
-                      onChange={(e) => {
-                        setFrom(e.target.value);
-                        setPreset("");
-                      }}
-                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-6 w-full sm:w-24 cursor-pointer focus:ring-0 [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                      type="date" value={from} max={today}
+                      onChange={(e) => { setFrom(e.target.value); setPreset(""); }}
+                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-5 w-24 cursor-pointer [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
                     />
                   </div>
                 </div>
-
-                <ArrowRight
-                  className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0"
-                  strokeWidth={2.5}
-                />
-
-                <div className="relative flex items-center gap-2.5 px-3 py-1.5 bg-background border border-input/60 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all flex-1 sm:flex-initial">
-                  <Calendar
-                    className="w-4 h-4 text-muted-foreground/70 shrink-0"
-                    strokeWidth={2}
-                  />
-                  <div className="flex flex-col text-left">
-                    <span className="text-[9px] font-bold text-muted-foreground/80 uppercase tracking-wider leading-tight">
-                      To
-                    </span>
+                <ArrowRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                <div className="relative flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80 leading-tight">To</span>
                     <input
-                      type="date"
-                      value={to}
-                      max={today}
-                      onChange={(e) => {
-                        setTo(e.target.value);
-                        setPreset("");
-                      }}
-                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-6 w-full sm:w-24 cursor-pointer focus:ring-0 [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                      type="date" value={to} max={today}
+                      onChange={(e) => { setTo(e.target.value); setPreset(""); }}
+                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-5 w-24 cursor-pointer [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
                     />
                   </div>
                 </div>
               </div>
-
-              <Button
-                onClick={handleFetch}
-                disabled={!from || !to}
-                loading={loading}
-                size="lg"
-                variant="custom"
-                className="disabled:opacity-50 active:scale-[0.98] cursor-pointer"
-              >
-                {loading ? "Generating..." : "Generate Report"}
-              </Button>
             </div>
+
+            <button
+              onClick={handleFetch}
+              disabled={!from || !to || loading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] shrink-0"
+            >
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              {loading ? "Generating…" : "Generate Report"}
+            </button>
           </div>
         </div>
 
-        {/* Loading */}
+        {/* ── Loading ─────────────────────────────────────────────────────────── */}
         {loading && <LoadingState page="default" />}
 
-        {/* GST Report Results */}
+        {/* ── GST Results ─────────────────────────────────────────────────────── */}
         {!loading && fetched && reportType === "gst" && report && (
           <>
             {/* Summary cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                {
-                  label: "Taxable Value",
-                  value: fmt(report.summary.totalTaxableValue),
-                },
-                { label: "Total IGST", value: fmt(report.summary.totalIGST) },
-                { label: "Total CGST", value: fmt(report.summary.totalCGST) },
-                { label: "Total SGST", value: fmt(report.summary.totalSGST) },
-                { label: "Total Tax", value: fmt(report.summary.totalTax) },
-                { label: "Grand Total", value: fmt(report.summary.grandTotal) },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="bg-card border border-border rounded-2xl p-5"
-                >
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    {s.label}
-                  </p>
-                  <p className="text-xl font-bold text-foreground">{s.value}</p>
-                </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+              {gstCards.map((c, i) => (
+                <StatCard key={c.label} {...c} delay={i * 50} mounted={mounted} />
               ))}
             </div>
 
-            {/* Table header with actions */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-                {(["ALL", "PENDING", "FILED"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilingFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      filingFilter === f
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {f === "ALL"
-                      ? `All (${report.invoices.length})`
-                      : f === "PENDING"
-                        ? `Unfiled (${report.invoices.filter((i) => i.filingStatus === "PENDING").length})`
-                        : `Filed (${report.invoices.filter((i) => i.filingStatus === "FILED").length})`}
-                  </button>
-                ))}
+            {/* Toolbar */}
+            <div
+              className={`flex flex-wrap items-center justify-between gap-3 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
+              style={{ transitionDelay: "320ms" }}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filing filter */}
+                <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+                  {(["ALL", "PENDING", "FILED"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilingFilter(f)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                        filingFilter === f
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {f === "ALL"
+                        ? `All (${report.invoices.length})`
+                        : f === "PENDING"
+                          ? `Unfiled (${report.invoices.filter((i) => i.filingStatus === "PENDING").length})`
+                          : `Filed (${report.invoices.filter((i) => i.filingStatus === "FILED").length})`}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort */}
                 <button
-                  onClick={() =>
-                    setSortOrder((s) => (s === "desc" ? "asc" : "desc"))
-                  }
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                  onClick={() => setSortOrder((s) => (s === "desc" ? "asc" : "desc"))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-muted border border-border rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition-all duration-150"
                 >
-                  <ArrowDownUp className="w-4 h-4" />
+                  <ArrowDownUp className="w-3.5 h-3.5" />
                   {sortOrder === "desc" ? "Newest first" : "Oldest first"}
                 </button>
               </div>
+
               <PermissionGate permission="report:export">
                 <button
                   onClick={() => exportCSV(filtered, report.period)}
-                  className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-3.5 h-3.5" />
                   Export CSV
                 </button>
               </PermissionGate>
             </div>
 
             {/* Table */}
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div
+              className={`bg-card border border-border rounded-2xl overflow-hidden transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}
+              style={{ transitionDelay: "370ms" }}
+            >
               {filtered.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground text-sm">
-                  No invoices match this filter.
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                    <Receipt className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No invoices match this filter.</p>
                 </div>
               ) : (
-                <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <DataTable
-                    columns={gstColumns}
-                    data={filtered}
-                    keyExtractor={(row) => row.id}
-                    emptyText="No invoices match this filter."
-                  />
-                </div>
+                <DataTable
+                  columns={gstColumns}
+                  data={filtered}
+                  keyExtractor={(row) => row.id}
+                  emptyText="No invoices match this filter."
+                />
               )}
             </div>
           </>
         )}
 
-        {/* Vendor Results */}
+        {/* ── Vendor Results ───────────────────────────────────────────────────── */}
         {!loading && fetched && reportType === "vendor" && vendorReport && (
           <>
             {/* Summary cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-card border border-border rounded-2xl p-5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Total Spent
-                </p>
-                <p className="text-xl font-bold text-foreground">
-                  {fmt(vendorReport.summary.totalSpent)}
-                </p>
-              </div>
-              <div className="bg-card border border-border rounded-2xl p-5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Total Paid
-                </p>
-                <p className="text-xl font-bold text-status-paid-foreground">
-                  {fmt(vendorReport.summary.totalPaid)}
-                </p>
-              </div>
-              <div className="bg-card border border-border rounded-2xl p-5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Outstanding
-                </p>
-                <p
-                  className={`text-xl font-bold ${
-                    vendorReport.summary.totalOutstanding > 0
-                      ? "text-status-overdue-foreground"
-                      : "text-foreground"
-                  }`}
-                >
-                  {fmt(vendorReport.summary.totalOutstanding)}
-                </p>
-              </div>
+              {vendorCards.map((c, i) => (
+                <StatCard key={c.label} {...c} delay={i * 60} mounted={mounted} />
+              ))}
             </div>
 
-            {/* Export action */}
-            <div className="flex items-center justify-between gap-4">
+            {/* Toolbar */}
+            <div
+              className={`flex items-center justify-between gap-4 transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
+              style={{ transitionDelay: "200ms" }}
+            >
               <p className="text-sm text-muted-foreground">
-                {vendorReport.vendors.length} vendor
-                {vendorReport.vendors.length !== 1 ? "s" : ""} with activity in
-                this period
+                <span className="font-semibold text-foreground">{vendorReport.vendors.length}</span>
+                {" "}vendor{vendorReport.vendors.length !== 1 ? "s" : ""} with activity in this period
               </p>
-              <button
-                onClick={() => exportVendorCSV(vendorReport)}
-                disabled={vendorReport.vendors.length === 0}
-                className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
+              <PermissionGate permission="report:export">
+                <button
+                  onClick={() => exportVendorCSV(vendorReport)}
+                  disabled={vendorReport.vendors.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </button>
+              </PermissionGate>
             </div>
 
             {/* Table */}
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div
+              className={`bg-card border border-border rounded-2xl overflow-hidden transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}
+              style={{ transitionDelay: "250ms" }}
+            >
               <DataTable
                 columns={vendorColumns}
                 data={vendorReport.vendors}
@@ -775,19 +656,23 @@ export default function ReportsPage() {
           </>
         )}
 
-        {/* Empty state before first fetch */}
+        {/* ── Pre-fetch empty state ────────────────────────────────────────────── */}
         {!loading && !fetched && (
-          <div className="bg-card border border-border rounded-2xl text-center py-16">
-            <p className="text-muted-foreground text-sm mb-1">
-              Select a date range and generate the report
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {reportType === "gst"
-                ? "Only invoices marked as GST invoices will appear here"
-                : "Shows spending grouped by vendor for the selected period"}
-            </p>
+          <div className="bg-card border border-border rounded-2xl flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+              <FileBarChart className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-foreground">Select a period and generate</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                {reportType === "gst"
+                  ? "Only invoices marked as GST invoices will appear here"
+                  : "Shows spending grouped by vendor for the selected period"}
+              </p>
+            </div>
           </div>
         )}
+
       </div>
     </PermissionGate>
   );

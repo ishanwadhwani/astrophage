@@ -1,4 +1,4 @@
-import { axiosInstance } from "./axiosInstance";
+import { axiosInstance, invalidateCache } from "./axiosInstance";
 import {
   Invoice,
   CreateInvoicePayload,
@@ -23,6 +23,7 @@ export const createInvoice = async (
   payload: CreateInvoicePayload,
 ): Promise<Invoice> => {
   const res = await axiosInstance.post<Invoice>("/api/invoices", payload);
+  invalidateCache();
   return res.data;
 };
 
@@ -33,11 +34,13 @@ export const updateInvoiceStatus = async (
   const res = await axiosInstance.put<Invoice>(`/api/invoices/${id}`, {
     status,
   });
+  invalidateCache();
   return res.data;
 };
 
 export const deleteInvoice = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/invoices/${id}`);
+  invalidateCache();
 };
 
 export const recordPayment = async (
@@ -49,6 +52,7 @@ export const recordPayment = async (
   outstanding: number;
 }> => {
   const res = await axiosInstance.post("/api/payments", payload);
+  invalidateCache();
   return res.data;
 };
 
@@ -63,6 +67,7 @@ export const emailInvoice = async (
 
 export const markInvoiceGSTFiled = async (id: string): Promise<void> => {
   await axiosInstance.put(`/api/invoices/${id}/mark-filed`);
+  invalidateCache("/api/invoices");
 };
 
 export const fetchRecurringInvoices = async (
@@ -82,6 +87,7 @@ export const createRecurringInvoice = async (
     "/api/invoices/recurring",
     payload,
   );
+  invalidateCache();
   return res.data;
 };
 
@@ -91,11 +97,13 @@ export const toggleRecurringInvoice = async (
   const res = await axiosInstance.put<RecurringInvoice>(
     `/api/invoices/recurring/${id}`,
   );
+  invalidateCache("/api/invoices");
   return res.data;
 };
 
 export const deleteRecurringInvoice = async (id: string): Promise<void> => {
   await axiosInstance.delete(`/api/invoices/recurring/${id}`);
+  invalidateCache("/api/invoices");
 };
 
 export const bulkDeleteInvoices = async (
@@ -106,5 +114,6 @@ export const bulkDeleteInvoices = async (
     "/api/invoices/bulk",
     { data: { ids, businessId } },
   );
+  invalidateCache();
   return res.data;
 };
