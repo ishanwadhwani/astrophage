@@ -107,10 +107,10 @@ export default function InvoiceSection() {
               {/* Live preview */}
               <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border border-border/60 rounded-xl">
                 <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <p className="text-xs text-muted-foreground">Next invoice will be numbered</p>
-                <span className="font-mono font-bold text-foreground text-xs ml-auto">
+                <p className="text-xs text-muted-foreground">Next invoice will continue with same numbering sequence. Changing sequence does not change number sequence.</p>
+                {/* <span className="font-mono font-bold text-foreground text-xs ml-auto">
                   {prefix.toUpperCase()}-0001
-                </span>
+                </span> */}
               </div>
             </div>
           </div>

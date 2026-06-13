@@ -17,12 +17,13 @@ import { markInvoiceGSTFiled } from "@/lib/invoices";
 import PermissionGate from "@/components/ui/PermissionGate";
 import {
   Download, ArrowDownUp, ReceiptIndianRupee, Sheet,
-  Calendar, ArrowRight, BadgeCheck, TrendingDown,
+  BadgeCheck, TrendingDown,
   AlertCircle, Receipt, Percent, Calculator,
   IndianRupee, FileBarChart, ChevronRight,
 } from "lucide-react";
 import { EmptyCell } from "@/components/ui/EmptyCell";
 import { exportToCSV } from "@/lib/csv";
+import DateRangeFilter, { DateRange } from "@/components/ui/DateRangeFilter";
 
 type ReportType = "gst" | "vendor";
 
@@ -34,36 +35,11 @@ const fmt = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-const getPreset = (preset: string): { from: string; to: string } => {
-  const now   = new Date();
-  const year  = now.getFullYear();
-  const month = now.getMonth();
-  const iso   = (d: Date) => d.toISOString().split("T")[0];
-
-  switch (preset) {
-    case "this_month":
-      return { from: iso(new Date(year, month, 1)),     to: iso(new Date(year, month + 1, 0)) };
-    case "last_month":
-      return { from: iso(new Date(year, month - 1, 1)), to: iso(new Date(year, month, 0)) };
-    case "this_quarter": {
-      const q = Math.floor(month / 3);
-      return { from: iso(new Date(year, q * 3, 1)),     to: iso(new Date(year, q * 3 + 3, 0)) };
-    }
-    case "this_fy": {
-      const fyStart = month >= 3 ? year : year - 1;
-      return { from: iso(new Date(fyStart, 3, 1)),      to: iso(new Date(fyStart + 1, 2, 31)) };
-    }
-    default:
-      return { from: iso(new Date(year, month, 1)),     to: iso(now) };
-  }
+const getThisMonth = (): DateRange => {
+  const now = new Date();
+  const iso = (d: Date) => d.toISOString().split("T")[0];
+  return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
 };
-
-const PRESETS = [
-  { label: "This Month",   value: "this_month"   },
-  { label: "Last Month",   value: "last_month"   },
-  { label: "This Quarter", value: "this_quarter" },
-  { label: "This FY",      value: "this_fy"      },
-];
 
 // ── CSV exports ───────────────────────────────────────────────────────────────
 
@@ -131,12 +107,8 @@ function StatCard({
 export default function ReportsPage() {
   const user       = getUser();
   const businessId = user?.business?.id;
-  const today      = new Date().toISOString().split("T")[0];
-  const initial    = getPreset("this_month");
 
-  const [from,          setFrom]          = useState(initial.from);
-  const [to,            setTo]            = useState(initial.to);
-  const [preset,        setPreset]        = useState("this_month");
+  const [dateRange,     setDateRange]     = useState<DateRange>(getThisMonth());
   const [report,        setReport]        = useState<GSTReport | null>(null);
   const [loading,       setLoading]       = useState(false);
   const [fetched,       setFetched]       = useState(false);
@@ -154,22 +126,16 @@ export default function ReportsPage() {
     }
   }, [fetched, reportType]);
 
-  const handlePreset = (value: string) => {
-    setPreset(value);
-    const p = getPreset(value);
-    setFrom(p.from); setTo(p.to);
-  };
-
   const handleFetch = async () => {
     if (!businessId) return;
     setLoading(true);
     setMounted(false);
     try {
       if (reportType === "gst") {
-        const data = await fetchGSTReport(businessId, from, to);
+        const data = await fetchGSTReport(businessId, dateRange.from, dateRange.to);
         setReport(data);
       } else {
-        const data = await fetchVendorSpending(businessId, from, to);
+        const data = await fetchVendorSpending(businessId, dateRange.from, dateRange.to);
         setVendorReport(data);
       }
       setFetched(true);
@@ -453,76 +419,25 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* ── Filter card ─────────────────────────────────────────────────────── */}
-        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-          {/* Quick presets */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</p>
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.value}
-                  onClick={() => handlePreset(p.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
-                    preset === p.value
-                      ? "bg-primary text-primary-foreground border-transparent shadow-sm"
-                      : "bg-muted border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  <Calendar className={`w-3 h-3 ${preset === p.value ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-border" />
-
-          {/* Date range + generate */}
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="flex-1 flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Custom Range</p>
-              <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl p-1.5 w-fit">
-                <div className="relative flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80 leading-tight">From</span>
-                    <input
-                      type="date" value={from} max={today}
-                      onChange={(e) => { setFrom(e.target.value); setPreset(""); }}
-                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-5 w-24 cursor-pointer [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
-                    />
-                  </div>
-                </div>
-                <ArrowRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-                <div className="relative flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg focus-within:ring-2 focus-within:ring-ring/20 focus-within:border-primary transition-all">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80 leading-tight">To</span>
-                    <input
-                      type="date" value={to} max={today}
-                      onChange={(e) => { setTo(e.target.value); setPreset(""); }}
-                      className="bg-transparent border-0 p-0 text-sm font-medium text-foreground outline-none h-5 w-24 cursor-pointer [color-scheme:light] [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:opacity-0"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={handleFetch}
-              disabled={!from || !to || loading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] shrink-0"
-            >
-              {loading ? (
-                <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              {loading ? "Generating…" : "Generate Report"}
-            </button>
-          </div>
+        {/* ── Filter bar ──────────────────────────────────────────────────────── */}
+        <div className="bg-card border border-border rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            showPresets
+            compact
+            className="flex-1"
+          />
+          <button
+            onClick={handleFetch}
+            disabled={!dateRange.from || !dateRange.to || loading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] shrink-0"
+          >
+            {loading
+              ? <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              : <ChevronRight className="w-4 h-4" />}
+            {loading ? "Generating…" : "Generate Report"}
+          </button>
         </div>
 
         {/* ── Loading ─────────────────────────────────────────────────────────── */}

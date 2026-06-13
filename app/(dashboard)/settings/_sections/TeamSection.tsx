@@ -63,9 +63,10 @@ const AccessDenied = () => (
 export default function TeamSection() {
   const { businessId } = useBusiness();
   const { success, error, confirm } = useToast();
-  const [team,    setTeam]    = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [team,           setTeam]           = useState<TeamMember[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [mounted,        setMounted]        = useState(false);
+  const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
 
   const { register, control, handleSubmit, reset, formState: { isSubmitting } } =
     useForm<InviteForm>({ defaultValues: { email: "", role: "VIEWER" } });
@@ -112,12 +113,15 @@ export default function TeamSection() {
   };
 
   const handleRoleChange = async (userId: string, newRole: MemberRole) => {
+    setChangingRoleId(userId);
     try {
       await axiosInstance.put(`/api/team/${businessId}/members/${userId}`, { role: newRole });
       setTeam((prev) => prev.map((m) => (m.id === userId ? { ...m, role: newRole } : m)));
       success("Role updated", "success");
     } catch {
       error("Failed to update role", "error");
+    } finally {
+      setChangingRoleId(null);
     }
   };
 
@@ -196,15 +200,21 @@ export default function TeamSection() {
                         {isPending ? `Invited · ${member.role}` : member.role}
                       </span>
                     ) : (
-                      <select
-                        value={member.role}
-                        onChange={(e) => handleRoleChange(member.id, e.target.value as MemberRole)}
-                        className="px-2.5 py-1.5 bg-muted border border-input rounded-lg text-xs font-semibold text-foreground outline-none focus:border-primary transition-all cursor-pointer"
-                      >
-                        {["ADMIN","EDITOR","ACCOUNTANT","VIEWER"].map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={member.role}
+                          onChange={(e) => handleRoleChange(member.id, e.target.value as MemberRole)}
+                          disabled={changingRoleId === member.id}
+                          className="px-2.5 py-1.5 bg-muted border border-input rounded-lg text-xs font-semibold text-foreground outline-none focus:border-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {["ADMIN","EDITOR","ACCOUNTANT","VIEWER"].map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                        {changingRoleId === member.id && (
+                          <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
+                        )}
+                      </div>
                     )}
 
                     {member.role !== "OWNER" && !isPending && (

@@ -1,4 +1,7 @@
-import { RefreshCw, Trash2 } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { RefreshCw, Trash2, Loader2 } from "lucide-react";
 import { RecurringBill } from "@/types/vendor";
 
 const fmt = (n: number) =>
@@ -102,7 +105,7 @@ function NextDueCell({
 
 interface Props {
   items: RecurringBill[];
-  onToggle: (id: string) => void;
+  onToggle: (id: string) => void | Promise<void>;
   onDelete: (id: string) => void;
 }
 
@@ -111,6 +114,17 @@ export default function RecurringBillTable({
   onToggle,
   onDelete,
 }: Props) {
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const handleToggle = async (id: string) => {
+    setTogglingId(id);
+    try {
+      await onToggle(id);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -153,77 +167,85 @@ export default function RecurringBillTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
-          {items.map((rb) => (
-            <tr
-              key={rb.id}
-              className="group hover:bg-muted/30 transition-colors duration-100"
-            >
-              {/* Description */}
-              <td className="px-4 py-3 font-semibold text-foreground">
-                {rb.description}
-              </td>
+          {items.map((rb) => {
+            const isToggling = togglingId === rb.id;
+            return (
+              <tr
+                key={rb.id}
+                className="group hover:bg-muted/30 transition-colors duration-100"
+              >
+                {/* Description */}
+                <td className="px-4 py-3 font-semibold text-foreground">
+                  {rb.description}
+                </td>
 
-              {/* Vendor */}
-              <td className="px-4 py-3 text-muted-foreground">
-                {rb.vendor.name}
-              </td>
+                {/* Vendor */}
+                <td className="px-4 py-3 text-muted-foreground">
+                  {rb.vendor.name}
+                </td>
 
-              {/* Amount */}
-              <td className="px-4 py-3">
-                <span className="font-semibold text-foreground tabular-nums">
-                  {fmt(rb.amount)}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                  /{" "}
-                  {FREQ_BADGE[rb.frequency]?.label?.toLowerCase() ??
-                    rb.frequency.toLowerCase()}
-                </span>
-              </td>
+                {/* Amount */}
+                <td className="px-4 py-3">
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {fmt(rb.amount)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    /{" "}
+                    {FREQ_BADGE[rb.frequency]?.label?.toLowerCase() ??
+                      rb.frequency.toLowerCase()}
+                  </span>
+                </td>
 
-              {/* Frequency */}
-              <td className="px-4 py-3">
-                <FrequencyBadge frequency={rb.frequency} />
-              </td>
+                {/* Frequency */}
+                <td className="px-4 py-3">
+                  <FrequencyBadge frequency={rb.frequency} />
+                </td>
 
-              {/* Next Due */}
-              <td className="px-4 py-3">
-                <NextDueCell dateStr={rb.nextDueDate} active={rb.isActive} />
-              </td>
+                {/* Next Due */}
+                <td className="px-4 py-3">
+                  <NextDueCell dateStr={rb.nextDueDate} active={rb.isActive} />
+                </td>
 
-              {/* Status toggle */}
-              <td className="px-4 py-3">
-                <button
-                  onClick={() => onToggle(rb.id)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors ${
-                    rb.isActive
-                      ? "bg-status-paid text-status-paid-foreground border-status-paid-foreground/20 hover:opacity-80"
-                      : "bg-status-draft text-status-draft-foreground border-status-draft-foreground/15 hover:opacity-80"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      rb.isActive
-                        ? "bg-status-paid-foreground"
-                        : "bg-status-draft-foreground/60"
-                    }`}
-                  />
-                  {rb.isActive ? "Active" : "Paused"}
-                </button>
-              </td>
-
-              {/* Actions */}
-              <td className="px-4 py-3 text-right">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-end">
+                {/* Status toggle */}
+                <td className="px-4 py-3">
                   <button
-                    onClick={() => onDelete(rb.id)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                    onClick={() => handleToggle(rb.id)}
+                    disabled={isToggling}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+                      rb.isActive
+                        ? "bg-status-paid text-status-paid-foreground border-status-paid-foreground/20 hover:opacity-80"
+                        : "bg-status-draft text-status-draft-foreground border-status-draft-foreground/15 hover:opacity-80"
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {isToggling ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          rb.isActive
+                            ? "bg-status-paid-foreground"
+                            : "bg-status-draft-foreground/60"
+                        }`}
+                      />
+                    )}
+                    {rb.isActive ? "Active" : "Paused"}
                   </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-3 text-right">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-end">
+                    <button
+                      onClick={() => onDelete(rb.id)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

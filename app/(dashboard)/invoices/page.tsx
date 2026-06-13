@@ -268,9 +268,7 @@ export default function InvoicesPage() {
             </div>
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                stats.overdueCount > 0
-                  ? "bg-status-overdue"
-                  : "bg-muted"
+                stats.overdueCount > 0 ? "bg-status-overdue" : "bg-muted"
               }`}
             >
               <AlertTriangle
@@ -334,7 +332,6 @@ export default function InvoicesPage() {
         onSearch={setSearch}
         onStatusChange={setStatus}
         onDateRange={setDateRange}
-        onClearDate={() => setDateRange({ from: "", to: "" })}
         totalCount={invoices.length}
         filteredCount={filtered.length}
       />
@@ -402,31 +399,57 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* ── Recurring table ───────────────────────────────────────────── */}
+      {/* Recurring table  */}
       {pageTab === "recurring" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-          <RecurringInvoiceTable
-            items={recurring}
-            onToggle={async (id) => {
-              const updated = await toggleRecurringInvoice(id);
-              setRecurring((prev) =>
-                prev.map((r) => (r.id === id ? updated : r)),
-              );
-            }}
-            onDelete={async (id) => {
-              if (!confirm) return;
-              await deleteRecurringInvoice(id);
-              setRecurring((prev) => prev.filter((r) => r.id !== id));
-            }}
-          />
-          <AddRecurringInvoiceModal
-            isOpen={recurringModal}
-            businessId={businessId!}
-            clients={clients}
-            onClose={() => setRecurringModal(false)}
-            onCreated={(ri) => setRecurring((prev) => [ri, ...prev])}
-          />
-        </div>
+        <>
+          <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-xl px-4 py-3">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0 mt-0.5"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Recurring invoices are{" "}
+              <strong className="text-foreground">templates</strong> that
+              automatically generate a real invoice each cycle (weekly, monthly,
+              etc.). Click any row to see the invoices it has generated. Paused
+              templates stop generating until reactivated.
+            </p>
+          </div>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <RecurringInvoiceTable
+              items={recurring}
+              onToggle={async (id) => {
+                const updated = await toggleRecurringInvoice(id);
+                setRecurring((prev) =>
+                  prev.map((r) => (r.id === id ? updated : r)),
+                );
+              }}
+              onDelete={async (id) => {
+                if (!confirm) return;
+                await deleteRecurringInvoice(id);
+                setRecurring((prev) => prev.filter((r) => r.id !== id));
+              }}
+            />
+            <AddRecurringInvoiceModal
+              isOpen={recurringModal}
+              businessId={businessId!}
+              clients={clients}
+              onClose={() => setRecurringModal(false)}
+              onCreated={(ri) => setRecurring((prev) => [ri, ...prev])}
+            />
+          </div>
+        </>
       )}
     </div>
   );

@@ -30,8 +30,9 @@ import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { fetchBusiness } from "@/lib/business";
+import PermissionGate from "@/components/ui/PermissionGate";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers 
 
 const fmt = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -50,7 +51,7 @@ const STATUS_CFG = {
   CANCELLED: { dot: "bg-status-cancelled-foreground/40",bg:"bg-status-cancelled",text: "text-status-cancelled-foreground", border: "border-status-cancelled-foreground/15",label:"Cancelled" },
 };
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// Sub-components
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CFG[status as keyof typeof STATUS_CFG];
@@ -246,6 +247,7 @@ function InvoiceTable({
               <td className="py-3">
                 <StatusBadge status={inv.status} />
               </td>
+              <PermissionGate permission="invoice:edit">
               <td className="py-3 text-right">
                 {showWhatsApp && inv.clientPhone && businessName && (
                   <button
@@ -258,6 +260,7 @@ function InvoiceTable({
                   </button>
                 )}
               </td>
+              </PermissionGate>
             </tr>
           ))}
         </tbody>
@@ -329,7 +332,7 @@ const StatusChart = dynamic(() => import("./_components/StatusChart"), {
   loading: () => <ChartSpinner />,
 });
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// Page 
 
 export default function DashboardPage() {
   const user = getUser();
@@ -399,7 +402,7 @@ export default function DashboardPage() {
     weekday: "long", day: "numeric", month: "long",
   });
 
-  // ── Stat cards config ──────────────────────────────────────────────────────
+  // Stat cards config 
 
   const statCards = [
     {

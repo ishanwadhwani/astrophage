@@ -143,6 +143,7 @@ export interface RecurringInvoice {
   notes: string | null;
   client: { id: string; name: string };
   lineItems: RecurringInvoiceLineItem[];
+  description: string
 }
 
 export interface CreateRecurringInvoicePayload {
@@ -176,4 +177,26 @@ export interface RecurringForm {
     rate: number;
     gstRate: number;
   }[];
+}
+
+export interface GeneratedInvoiceRow {
+  id: string;
+  number: string;
+  invoiceDate: string;
+  dueDate: string;
+  total: number;
+  paid: number;
+  outstanding: number;
+  status: string;
+}
+
+export interface RecurringInvoiceDetail {
+  recurring: RecurringInvoice;
+  generatedInvoices: GeneratedInvoiceRow[];
+  summary: {
+    totalGenerated: number;
+    totalCollected: number;
+    totalPending: number;
+  };
+  count: number;
 }
