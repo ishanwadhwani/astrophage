@@ -55,3 +55,35 @@ export interface ClientForm {
   notes: string;
   countryCode: "+91";
 }
+
+export interface ClientInvoiceRow {
+  id: string;
+  number: string;
+  invoiceDate: string;
+  dueDate: string;
+  total: number;
+  paid: number;
+  outstanding: number;
+  status: string;
+}
+
+export interface ClientSummary {
+  totalBilled: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  invoiceCount: number;
+  paidCount: number;
+  pendingCount: number;
+  overdueCount: number;
+  avgDaysToPay: number | null;
+  onTimeRate: number | null;
+  onTimeCount: number;
+  lateCount: number;
+  reliability: "excellent" | "good" | "fair" | "poor" | "new";
+}
+
+export interface ClientDetail {
+  client: Client;
+  summary: ClientSummary;
+  invoices: ClientInvoiceRow[];
+}

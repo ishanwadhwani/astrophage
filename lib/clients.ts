@@ -1,5 +1,10 @@
 import { axiosInstance } from "./axiosInstance";
-import { Client, CreateClientPayload, UpdateClientPayload } from "@/types/client";
+import {
+  Client,
+  CreateClientPayload,
+  UpdateClientPayload,
+  ClientDetail,
+} from "@/types/client";
 
 export const fetchClients = async (businessId: string): Promise<Client[]> => {
   const res = await axiosInstance.get<Client[]>("/api/clients", {
@@ -17,9 +22,20 @@ export const createClient = async (
 
 export const updateClient = async (
   id: string,
-  payload: UpdateClientPayload
+  payload: UpdateClientPayload,
 ): Promise<Client> => {
   const res = await axiosInstance.put<Client>(`/api/clients/${id}`, payload);
+  return res.data;
+};
+
+export const fetchClientDetail = async (
+  id: string,
+  businessId: string,
+): Promise<ClientDetail> => {
+  const res = await axiosInstance.get<ClientDetail>(
+    `/api/clients/${id}/detail`,
+    { params: { businessId } },
+  );
   return res.data;
 };
 

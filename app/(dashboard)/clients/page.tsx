@@ -10,6 +10,7 @@ import {
   Search,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Client, CreateClientPayload, ClientForm } from "@/types/client";
 import {
@@ -396,9 +397,12 @@ export default function ClientsPage() {
                         <div className="flex items-center gap-3">
                           <ClientAvatar name={client.name} />
                           <div>
-                            <p className="font-semibold text-foreground leading-tight">
+                            <Link
+                              href={`/clients/${client.id}`}
+                              className="font-semibold text-foreground leading-tight hover:text-primary transition"
+                            >
                               {client.name}
-                            </p>
+                            </Link>
                             {client.city && (
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {client.city}
