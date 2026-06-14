@@ -49,6 +49,7 @@ export interface BusinessForm {
   name: string;
   email: string;
   phone: string;
+  countryCode: string;
   gstin: string;
   pan: string;
   address: string;

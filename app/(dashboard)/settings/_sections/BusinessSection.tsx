@@ -11,12 +11,16 @@ import { STATES } from "@/constants/invoice-options";
 import { LoadingState } from "@/components/ui/LoadingState";
 import PermissionGate from "@/components/ui/PermissionGate";
 import { useToast } from "@/components/ui/Toast";
+import {
+  emailRules, phoneRules, gstinRules, panRules, pincodeRules,
+  toUpperNoSpace, formatPhone,
+} from "@/lib/validators";
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
-const inp = "w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground outline-none transition-all duration-150 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/10";
+const inp    = "w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground outline-none transition-all duration-150 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/10";
 const inpErr = "w-full px-3.5 py-2.5 bg-destructive/5 border border-destructive rounded-xl text-sm text-foreground outline-none transition-all duration-150 focus:ring-2 focus:ring-destructive/15";
-const lbl = "block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5";
+const lbl    = "block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5";
 
 function Field({ label, required, hint, error, className = "", children }: {
   label: string; required?: boolean; hint?: string;
@@ -28,7 +32,7 @@ function Field({ label, required, hint, error, className = "", children }: {
         {label}{required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       {children}
-      {error  && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+      {error     && <p className="text-xs text-destructive mt-1.5">{error}</p>}
       {hint && !error && <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{hint}</p>}
     </div>
   );
@@ -87,18 +91,26 @@ const AccessDenied = () => (
 export default function BusinessSection() {
   const { businessId } = useBusiness();
   const { success, error } = useToast();
-  const [loading,  setLoading]  = useState(true);
-  const [mounted,  setMounted]  = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } =
     useForm<BusinessForm>({
-      defaultValues: { name: "", email: "", phone: "", gstin: "", pan: "", address: "", city: "", state: "", pincode: "", upiId: "" },
+      defaultValues: {
+        name: "", email: "", phone: "", countryCode: "+91",
+        gstin: "", pan: "", address: "", city: "", state: "", pincode: "", upiId: "",
+      },
     });
 
   useEffect(() => {
     if (!businessId) return;
     fetchBusiness(businessId)
-      .then((d) => reset({ name: d.name ?? "", email: d.email ?? "", phone: d.phone ?? "", gstin: d.gstin ?? "", pan: d.pan ?? "", address: d.address ?? "", city: d.city ?? "", state: d.state ?? "", pincode: d.pincode ?? "", upiId: d.upiId ?? "" }))
+      .then((d) => reset({
+        name: d.name ?? "", email: d.email ?? "", phone: d.phone ?? "",
+        countryCode: "+91",
+        gstin: d.gstin ?? "", pan: d.pan ?? "", address: d.address ?? "",
+        city: d.city ?? "", state: d.state ?? "", pincode: d.pincode ?? "", upiId: d.upiId ?? "",
+      }))
       .catch(() => error("Failed to load business details", "error"))
       .finally(() => { setLoading(false); setTimeout(() => setMounted(true), 60); });
   }, [businessId, reset]);
@@ -106,7 +118,7 @@ export default function BusinessSection() {
   const onSubmit = async (values: BusinessForm) => {
     try {
       const payload: UpdateBusinessPayload = {
-        name: values.name,
+        name:    values.name,
         email:   values.email   || undefined,
         phone:   values.phone   || undefined,
         gstin:   values.gstin   || undefined,
@@ -137,7 +149,9 @@ export default function BusinessSection() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-foreground">Business Profile</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Your business identity shown on invoices — name, GSTIN, PAN and address.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your business identity shown on invoices — name, GSTIN, PAN and address.
+            </p>
           </div>
         </div>
 
@@ -150,13 +164,49 @@ export default function BusinessSection() {
           >
             <Group title="Identity">
               <Field label="Business Name" required error={errors.name?.message} className="sm:col-span-2">
-                <input type="text" placeholder="Nullpalette Private Limited" {...register("name", { required: "Business name is required" })} className={errors.name ? inpErr : inp} />
+                <input
+                  type="text"
+                  placeholder="Nullpalette Private Limited"
+                  maxLength={100}
+                  {...register("name", { required: "Business name is required" })}
+                  className={errors.name ? inpErr : inp}
+                />
               </Field>
-              <Field label="GSTIN">
-                <input type="text" placeholder="09AAHCN9733B1ZC" {...register("gstin")} className={inp} />
+
+              <Field label="GSTIN" error={errors.gstin?.message}>
+                <Controller
+                  name="gstin"
+                  control={control}
+                  rules={gstinRules}
+                  render={({ field }) => (
+                    <input
+                      type="text"
+                      placeholder="09AAHCN9733B1ZC"
+                      maxLength={15}
+                      value={field.value}
+                      onChange={(e) => field.onChange(toUpperNoSpace(e.target.value))}
+                      className={`uppercase ${errors.gstin ? inpErr : inp}`}
+                    />
+                  )}
+                />
               </Field>
-              <Field label="PAN">
-                <input type="text" placeholder="AAHCN9733B" {...register("pan")} className={inp} />
+
+              <Field label="PAN" error={errors.pan?.message}>
+                <Controller
+                  name="pan"
+                  control={control}
+                  rules={panRules}
+                  render={({ field }) => (
+                    <input
+                      type="text"
+                      placeholder="AAHCN9733B"
+                      maxLength={10}
+                      value={field.value}
+                      onChange={(e) => field.onChange(toUpperNoSpace(e.target.value))}
+                      className={errors.pan ? inpErr : inp}
+                    />
+                  )}
+                />
               </Field>
             </Group>
           </div>
@@ -169,15 +219,58 @@ export default function BusinessSection() {
             <Group title="Contact">
               <Field
                 label="Business Email"
-                hint="Shown on invoices and used as the reply-to when emailing clients. Not your login email."
+                error={errors.email?.message}
+                hint={!errors.email ? "Shown on invoices and used as the reply-to when emailing clients. Not your login email." : undefined}
               >
-                <input type="email" placeholder="billing@company.com" {...register("email")} className={inp} />
+                <Controller
+                  name="email"
+                  control={control}
+                  rules={emailRules}
+                  render={({ field }) => (
+                    <input
+                      type="email"
+                      placeholder="billing@company.com"
+                      {...field}
+                      className={errors.email ? inpErr : inp}
+                    />
+                  )}
+                />
               </Field>
-              <Field label="Phone">
-                <input type="tel" placeholder="+91 98765 43210" {...register("phone")} className={inp} />
+
+              <Field label="Phone" error={errors.phone?.message}>
+                <div className="flex gap-2">
+                  <select
+                    {...register("countryCode")}
+                    className="w-20 shrink-0 px-2 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground outline-none text-center transition-all duration-150 focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  >
+                    <option value="+91">+91</option>
+                  </select>
+                  <Controller
+                    name="phone"
+                    control={control}
+                    rules={phoneRules}
+                    render={({ field }) => (
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="9876543210"
+                        maxLength={10}
+                        value={field.value}
+                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                        className={`${errors.phone ? inpErr : inp} flex-1 min-w-0`}
+                      />
+                    )}
+                  />
+                </div>
               </Field>
+
               <Field label="UPI ID" hint="Added to invoices as a QR code — clients scan to pay instantly." className="sm:col-span-2">
-                <input type="text" placeholder="yourname@upi or 9876543210@paytm" {...register("upiId")} className={inp} />
+                <input
+                  type="text"
+                  placeholder="yourname@upi or 9876543210@paytm"
+                  {...register("upiId")}
+                  className={inp}
+                />
               </Field>
             </Group>
           </div>
@@ -189,17 +282,39 @@ export default function BusinessSection() {
           >
             <Group title="Address">
               <Field label="Street Address" className="sm:col-span-2">
-                <input type="text" placeholder="Building, Street" {...register("address")} className={inp} />
+                <input
+                  type="text"
+                  placeholder="Building, Street"
+                  maxLength={200}
+                  {...register("address")}
+                  className={inp}
+                />
               </Field>
+
               <Field label="City">
-                <input type="text" placeholder="Lucknow" {...register("city")} className={inp} />
+                <input
+                  type="text"
+                  placeholder="Lucknow"
+                  maxLength={25}
+                  {...register("city")}
+                  className={inp}
+                />
               </Field>
-              <Field label="Pincode">
-                <input type="text" placeholder="226001" {...register("pincode")} className={inp} />
+
+              <Field label="Pincode" error={errors.pincode?.message}>
+                <input
+                  type="text"
+                  placeholder="226001"
+                  maxLength={6}
+                  {...register("pincode", pincodeRules)}
+                  className={errors.pincode ? inpErr : inp}
+                />
               </Field>
+
               <Field label="State" required error={errors.state?.message} className="sm:col-span-2">
                 <Controller
-                  name="state" control={control}
+                  name="state"
+                  control={control}
                   rules={{ required: "State is required for GST calculation" }}
                   render={({ field }) => (
                     <select {...field} className={errors.state ? inpErr : inp}>

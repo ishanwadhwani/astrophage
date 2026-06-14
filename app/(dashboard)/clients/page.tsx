@@ -2,22 +2,54 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { Download, UserPlus, Pencil, Trash2, Search, Users } from "lucide-react";
+import {
+  Download,
+  UserPlus,
+  Pencil,
+  Trash2,
+  Search,
+  Users,
+} from "lucide-react";
 
 import { Client, CreateClientPayload, ClientForm } from "@/types/client";
-import { fetchClients, createClient, updateClient, deleteClient } from "@/lib/clients";
+import {
+  fetchClients,
+  createClient,
+  updateClient,
+  deleteClient,
+} from "@/lib/clients";
+import { fetchInvoices } from "@/lib/invoices";
 import Modal from "@/components/shared/Modal";
 import { STATES } from "@/constants/invoice-options";
 import { useBusiness } from "@/hooks/useBusiness";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { exportToCSV } from "@/lib/csv";
 import PermissionGate from "@/components/ui/PermissionGate";
+import { useToast } from "@/components/ui/Toast";
+import { Tooltip } from "@/components/ui/Tooltip";
+import {
+  panRules,
+  toUpperNoSpace,
+  phoneRules,
+  formatPhone,
+  emailRules,
+  gstinRules,
+  pincodeRules,
+} from "@/lib/validators";
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
+// Constants
 const DEFAULT_FORM: ClientForm = {
-  name: "", email: "", phone: "", gstin: "", pan: "",
-  address: "", city: "", state: "", pincode: "", notes: "",
+  name: "",
+  email: "",
+  phone: "",
+  gstin: "",
+  pan: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  notes: "",
+  countryCode: "+91",
 };
 
 const AVATAR_PALETTE = [
@@ -32,16 +64,24 @@ const AVATAR_PALETTE = [
 const inputBase =
   "w-full px-3 py-2.5 bg-background border rounded-lg text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-all placeholder:text-muted-foreground/60";
 const inputNormal = `${inputBase} border-input`;
-const inputError  = `${inputBase} border-destructive bg-destructive/5`;
-const labelBase   = "block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
+const inputError = `${inputBase} border-destructive bg-destructive/5`;
+const labelBase =
+  "block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
 
-// ── Sub-components ───────────────────────────────────────────────────────────
-
+// Sub-components
 function ClientAvatar({ name }: { name: string }) {
-  const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
   const color = AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
   return (
-    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${color}`}>
+    <div
+      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${color}`}
+    >
       {initials}
     </div>
   );
@@ -52,17 +92,20 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-destructive mt-1.5">{message}</p>;
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
-
+// Page
 export default function ClientsPage() {
   const { businessId } = useBusiness();
+  const { confirm, error: toastError } = useToast();
 
-  const [clients, setClients]           = useState<Client[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientsWithInvoices, setClientsWithInvoices] = useState<Set<string>>(
+    new Set(),
+  );
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [isModalOpen, setIsModalOpen]   = useState(false);
-  const [serverError, setServerError]   = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const {
     register,
@@ -72,13 +115,24 @@ export default function ClientsPage() {
     formState: { errors, isSubmitting },
   } = useForm<ClientForm>({ defaultValues: DEFAULT_FORM });
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
-
+  // Data fetching
   useEffect(() => {
     if (!businessId) return;
     const load = async () => {
       try {
-        setClients(await fetchClients(businessId));
+        const [clientList, invoiceList] = await Promise.all([
+          fetchClients(businessId),
+          fetchInvoices(businessId),
+        ]);
+        setClients(clientList);
+        // Build set of client IDs that have any non-cancelled invoice
+        setClientsWithInvoices(
+          new Set(
+            invoiceList
+              .filter((inv) => inv.status !== "CANCELLED")
+              .map((inv) => inv.clientId),
+          ),
+        );
       } catch {
       } finally {
         setLoading(false);
@@ -87,8 +141,7 @@ export default function ClientsPage() {
     void load();
   }, [businessId]);
 
-  // ── Filtered list ──────────────────────────────────────────────────────────
-
+  // Filtered list
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return clients;
@@ -101,8 +154,7 @@ export default function ClientsPage() {
     );
   }, [clients, search]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
+  // Handlers
   const openAddModal = () => {
     setEditingClient(null);
     reset(DEFAULT_FORM);
@@ -113,16 +165,16 @@ export default function ClientsPage() {
   const handleEditClick = (client: Client) => {
     setEditingClient(client);
     reset({
-      name:    client.name    ?? "",
-      email:   client.email   ?? "",
-      phone:   client.phone   ?? "",
-      gstin:   client.gstin   ?? "",
-      pan:     client.pan     ?? "",
+      name: client.name ?? "",
+      email: client.email ?? "",
+      phone: client.phone ?? "",
+      gstin: client.gstin ?? "",
+      pan: client.pan ?? "",
       address: client.address ?? "",
-      city:    client.city    ?? "",
-      state:   client.state   ?? "",
+      city: client.city ?? "",
+      state: client.state ?? "",
       pincode: client.pincode ?? "",
-      notes:   client.notes   ?? "",
+      notes: client.notes ?? "",
     });
     setServerError("");
     setIsModalOpen(true);
@@ -142,20 +194,22 @@ export default function ClientsPage() {
 
       if (editingClient) {
         const updated = await updateClient(editingClient.id, values);
-        setClients((prev) => prev.map((c) => (c.id === editingClient.id ? updated : c)));
+        setClients((prev) =>
+          prev.map((c) => (c.id === editingClient.id ? updated : c)),
+        );
       } else {
         const payload: CreateClientPayload = {
           ...values,
           businessId,
-          email:   values.email   || undefined,
-          phone:   values.phone   || undefined,
-          gstin:   values.gstin   || undefined,
-          pan:     values.pan     || undefined,
+          email: values.email || undefined,
+          phone: values.phone || undefined,
+          gstin: values.gstin || undefined,
+          pan: values.pan || undefined,
           address: values.address || undefined,
-          city:    values.city    || undefined,
-          state:   values.state   || undefined,
+          city: values.city || undefined,
+          state: values.state || undefined,
           pincode: values.pincode || undefined,
-          notes:   values.notes   || undefined,
+          notes: values.notes || undefined,
         };
         const created = await createClient(payload);
         setClients((prev) => [created, ...prev]);
@@ -164,7 +218,10 @@ export default function ClientsPage() {
     } catch (err: unknown) {
       let message = "Failed to save client";
       if (typeof err === "object" && err !== null) {
-        const e = err as { response?: { data?: { message?: string } }; message?: string };
+        const e = err as {
+          response?: { data?: { message?: string } };
+          message?: string;
+        };
         message = e.response?.data?.message || e.message || message;
       }
       setServerError(message);
@@ -172,31 +229,63 @@ export default function ClientsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this client? This cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Delete Client?",
+      message:
+        "This client will be permanently deleted. This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Keep",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteClient(id);
       setClients((prev) => prev.filter((c) => c.id !== id));
-    } catch {}
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ??
+        "Cannot delete this client — they have associated invoices.";
+      toastError("Delete failed", msg);
+    }
   };
 
   const handleExport = () => {
     exportToCSV(
       "clients",
-      ["Name", "Email", "Phone", "GSTIN", "PAN", "Address", "City", "State", "Pincode", "Notes"],
+      [
+        "Name",
+        "Email",
+        "Phone",
+        "GSTIN",
+        "PAN",
+        "Address",
+        "City",
+        "State",
+        "Pincode",
+        "Notes",
+      ],
       clients.map((c) => [
-        c.name, c.email ?? "", c.phone ?? "", c.gstin ?? "", c.pan ?? "",
-        c.address ?? "", c.city ?? "", c.state ?? "", c.pincode ?? "", c.notes ?? "",
+        c.name,
+        c.email ?? "",
+        c.phone ?? "",
+        c.gstin ?? "",
+        c.pan ?? "",
+        c.address ?? "",
+        c.city ?? "",
+        c.state ?? "",
+        c.pincode ?? "",
+        c.notes ?? "",
       ]),
     );
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
+  // Render
   if (loading) return <LoadingState page="clients" />;
 
   return (
     <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Clients</h1>
@@ -229,7 +318,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* ── Search ─────────────────────────────────────────────────────────── */}
+      {/* Search */}
       {clients.length > 0 && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -243,14 +332,15 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* ── Client table ───────────────────────────────────────────────────── */}
+      {/* Client table */}
       {clients.length === 0 ? (
-        /* Empty state */
         <div className="bg-card border border-border rounded-2xl text-center py-20 px-6">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
             <Users className="w-7 h-7 text-muted-foreground/50" />
           </div>
-          <p className="text-base font-semibold text-foreground mb-1.5">No clients yet</p>
+          <p className="text-base font-semibold text-foreground mb-1.5">
+            No clients yet
+          </p>
           <p className="text-sm text-muted-foreground mb-5">
             Add your first client to start creating invoices
           </p>
@@ -270,8 +360,12 @@ export default function ClientsPage() {
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-3">
             <Search className="w-5 h-5 text-muted-foreground/50" />
           </div>
-          <p className="text-sm font-semibold text-foreground mb-1">No clients match</p>
-          <p className="text-sm text-muted-foreground">Try a different search term</p>
+          <p className="text-sm font-semibold text-foreground mb-1">
+            No clients match
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Try a different search term
+          </p>
         </div>
       ) : (
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -290,79 +384,106 @@ export default function ClientsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {filtered.map((client) => (
-                  <tr
-                    key={client.id}
-                    className="group hover:bg-muted/30 transition-colors duration-100"
-                  >
-                    {/* Client — avatar + name + city */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <ClientAvatar name={client.name} />
-                        <div>
-                          <p className="font-semibold text-foreground leading-tight">
-                            {client.name}
-                          </p>
-                          {client.city && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {client.city}
+                {filtered.map((client) => {
+                  const hasInvoices = clientsWithInvoices.has(client.id);
+                  return (
+                    <tr
+                      key={client.id}
+                      className="group hover:bg-muted/30 transition-colors duration-100"
+                    >
+                      {/* Client — avatar + name + city */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <ClientAvatar name={client.name} />
+                          <div>
+                            <p className="font-semibold text-foreground leading-tight">
+                              {client.name}
                             </p>
-                          )}
+                            {client.city && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {client.city}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Contact — email + phone stacked */}
-                    <td className="px-4 py-3.5 max-w-48">
-                      <p className="text-sm text-foreground truncate">
-                        {client.email || "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {client.phone || "—"}
-                      </p>
-                    </td>
+                      {/* Contact — email + phone stacked */}
+                      <td className="px-4 py-3.5 max-w-48">
+                        <p className="text-sm text-foreground truncate">
+                          {client.email || "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {client.phone || "—"}
+                        </p>
+                      </td>
 
-                    {/* State */}
-                    <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap">
-                      {client.state || "—"}
-                    </td>
+                      {/* State */}
+                      <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap">
+                        {client.state || "—"}
+                      </td>
 
-                    {/* GSTIN — monospace chip */}
-                    <td className="px-4 py-3.5">
-                      {client.gstin ? (
-                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded-md text-foreground">
-                          {client.gstin}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </td>
+                      {/* GSTIN — monospace chip */}
+                      <td className="px-4 py-3.5">
+                        {client.gstin ? (
+                          <span className="font-mono text-xs bg-muted px-2 py-1 rounded-md text-foreground">
+                            {client.gstin}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            —
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Actions — fade in on row hover */}
-                    <td className="px-4 py-3.5 text-right opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                      <div className="flex items-center justify-end gap-1">
-                        <PermissionGate permission="client:edit">
-                          <button
-                            onClick={() => handleEditClick(client)}
-                            title="Edit client"
-                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                        </PermissionGate>
-                        <PermissionGate permission="client:delete">
-                          <button
-                            onClick={() => handleDelete(client.id)}
-                            title="Delete client"
-                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </PermissionGate>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Actions — fade in on row hover */}
+                      <td className="px-4 py-3.5 text-right opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                        <div className="flex items-center justify-end gap-1">
+                          <PermissionGate permission="client:edit">
+                            <button
+                              onClick={() => handleEditClick(client)}
+                              title="Edit client"
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          </PermissionGate>
+                          <PermissionGate permission="client:delete">
+                            <Tooltip
+                              content={
+                                hasInvoices
+                                  ? "Client has invoices and cannot be deleted"
+                                  : "Delete client"
+                              }
+                              variant={hasInvoices ? "warning" : "default"}
+                              side="left"
+                              delay={hasInvoices ? 100 : 500}
+                            >
+                              <button
+                                onClick={() =>
+                                  !hasInvoices && handleDelete(client.id)
+                                }
+                                disabled={hasInvoices}
+                                aria-label={
+                                  hasInvoices
+                                    ? "Cannot delete — client has invoices"
+                                    : "Delete client"
+                                }
+                                className={`p-1.5 rounded-md transition-colors ${
+                                  hasInvoices
+                                    ? "text-muted-foreground/40 cursor-not-allowed"
+                                    : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                }`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          </PermissionGate>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -371,14 +492,15 @@ export default function ClientsPage() {
           {search && (
             <div className="px-4 py-2.5 border-t border-border/60 bg-muted/20">
               <p className="text-xs text-muted-foreground">
-                {filtered.length} of {clients.length} client{clients.length !== 1 ? "s" : ""}
+                {filtered.length} of {clients.length} client
+                {clients.length !== 1 ? "s" : ""}
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* ── Add / Edit modal ───────────────────────────────────────────────── */}
+      {/* Add / Edit modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleClose}
@@ -387,7 +509,8 @@ export default function ClientsPage() {
         <form
           onSubmit={handleSubmit(onSubmit)}
           noValidate
-          className="space-y-5 max-h-[70vh] overflow-y-auto pr-1"
+          // Added overflow-x-hidden here as a safety net to completely kill horizontal scrolling
+          className="space-y-5 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-2"
         >
           {/* Contact info */}
           <div className="space-y-3">
@@ -408,24 +531,59 @@ export default function ClientsPage() {
               <FieldError message={errors.name?.message} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            {/* Using a 12-column grid ensures perfectly equal 50/50 splits on desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+              {/* Email - Takes 6/12 columns */}
+              <div className="sm:col-span-6">
                 <label className={labelBase}>Email</label>
                 <input
                   type="email"
-                  placeholder="client@example.com"
-                  {...register("email")}
-                  className={inputNormal}
+                  placeholder="name@example.com"
+                  {...register("email", emailRules)}
+                  className={errors.email ? inputError : inputNormal}
                 />
+                {errors.email && (
+                  <p className="text-xs text-destructive mt-1.5">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
-              <div>
+
+              {/* Phone - Takes 6/12 columns */}
+              <div className="sm:col-span-6">
                 <label className={labelBase}>Phone</label>
-                <input
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  {...register("phone")}
-                  className={inputNormal}
-                />
+                <div className="flex gap-2 w-full">
+                  <select
+                    {...register("countryCode")}
+                    className={`${inputNormal} w-20! shrink-0 text-center px-1`}
+                  >
+                    <option value="+91">+91</option>
+                  </select>
+
+                  <Controller
+                    name="phone"
+                    control={control}
+                    rules={phoneRules}
+                    render={({ field }) => (
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="9876543210"
+                        maxLength={10}
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(formatPhone(e.target.value))
+                        }
+                        className={`${errors.phone ? inputError : inputNormal} w-auto! flex-1 min-w-0`}
+                      />
+                    )}
+                  />
+                </div>
+                {errors.phone && (
+                  <p className="text-xs text-destructive mt-1.5">
+                    {errors.phone.message}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -439,21 +597,53 @@ export default function ClientsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelBase}>GSTIN</label>
-                <input
-                  type="text"
-                  placeholder="07AABCS7414G1ZH"
-                  {...register("gstin")}
-                  className={inputNormal}
+                <Controller
+                  name="gstin"
+                  control={control}
+                  rules={gstinRules}
+                  render={({ field }) => (
+                    <input
+                      type="text"
+                      placeholder="07AABCS7414G1ZH"
+                      maxLength={15}
+                      value={field.value}
+                      onChange={(e) =>
+                        field.onChange(toUpperNoSpace(e.target.value))
+                      }
+                      className={`uppercase ${errors.gstin ? inputError : inputNormal}`}
+                    />
+                  )}
                 />
+                {errors.gstin && (
+                  <p className="text-xs text-destructive mt-1.5">
+                    {errors.gstin.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelBase}>PAN</label>
-                <input
-                  type="text"
-                  placeholder="AABCS7414G"
-                  {...register("pan")}
-                  className={inputNormal}
+                <Controller
+                  name="pan"
+                  control={control}
+                  rules={panRules}
+                  render={({ field }) => (
+                    <input
+                      type="text"
+                      placeholder="ABCDE1234F"
+                      maxLength={10}
+                      value={field.value}
+                      onChange={(e) =>
+                        field.onChange(toUpperNoSpace(e.target.value))
+                      }
+                      className={errors.pan ? inputError : inputNormal}
+                    />
+                  )}
                 />
+                {errors.pan && (
+                  <p className="text-xs text-destructive mt-1.5">
+                    {errors.pan.message}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -481,6 +671,7 @@ export default function ClientsPage() {
                   type="text"
                   placeholder="New Delhi"
                   {...register("city")}
+                  maxLength={25}
                   className={inputNormal}
                 />
               </div>
@@ -489,9 +680,15 @@ export default function ClientsPage() {
                 <input
                   type="text"
                   placeholder="110032"
-                  {...register("pincode")}
-                  className={inputNormal}
+                  {...register("pincode", pincodeRules)}
+                  maxLength={6}
+                  className={errors.pincode ? inputError : inputNormal}
                 />
+                {errors.pincode && (
+                  <p className="text-xs text-destructive mt-1.5">
+                    {errors.pincode.message}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -510,7 +707,9 @@ export default function ClientsPage() {
                   >
                     <option value="">Select state</option>
                     {STATES.map((s) => (
-                      <option key={s.key} value={s.value}>{s.label}</option>
+                      <option key={s.key} value={s.value}>
+                        {s.label}
+                      </option>
                     ))}
                   </select>
                 )}
@@ -526,8 +725,10 @@ export default function ClientsPage() {
               rows={2}
               placeholder="Any notes about this client"
               {...register("notes")}
+              maxLength={150}
               className={`${inputNormal} resize-none`}
             />
+            <p className="text-[10px]">Max characters 150</p>
           </div>
 
           {/* Server error */}
@@ -551,7 +752,11 @@ export default function ClientsPage() {
               disabled={isSubmitting}
               className="flex-1 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all duration-200"
             >
-              {isSubmitting ? "Saving…" : editingClient ? "Save Changes" : "Add Client"}
+              {isSubmitting
+                ? "Saving…"
+                : editingClient
+                  ? "Save Changes"
+                  : "Add Client"}
             </button>
           </div>
         </form>

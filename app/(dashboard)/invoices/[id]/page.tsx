@@ -30,6 +30,7 @@ const InvoiceDownloadButton = dynamic(
 import { openWhatsApp, invoiceReminderMessage } from "@/lib/whatsapp";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useToast } from "@/components/ui/Toast";
 import SendInvoiceModal from "../_components/SendInvoiceModal";
 import PermissionGate from "@/components/ui/PermissionGate";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -85,6 +86,7 @@ export default function InvoiceDetailPage() {
   const user = getUser();
   const router = useRouter();
 
+  const { confirm } = useToast();
   const [invoice,       setInvoice]       = useState<Invoice | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [serverError,   setServerError]   = useState("");
@@ -166,7 +168,15 @@ export default function InvoiceDetailPage() {
   };
 
   const handleCancel = async () => {
-    if (!invoice || !confirm("Cancel this invoice?")) return;
+    if (!invoice) return;
+    const ok = await confirm({
+      title: "Cancel Invoice?",
+      message: "This invoice will be marked as cancelled. This action cannot be undone.",
+      confirmText: "Cancel Invoice",
+      cancelText: "Keep Invoice",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const updated = await updateInvoiceStatus(invoice.id, "CANCELLED");
       setInvoice((prev) => (prev ? { ...prev, status: updated.status } : prev));

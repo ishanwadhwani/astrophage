@@ -23,6 +23,7 @@ import RecordBillPaymentModal from "./_components/RecordBillPaymentModal";
 import RecurringBillTable from "./_components/RecurringBillTable";
 import AddRecurringBillModal from "./_components/AddRecurringBillModal";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useToast } from "@/components/ui/Toast";
 import SearchBar from "@/components/ui/SearchBar";
 import DateRangeFilter, { DateRange } from "@/components/ui/DateRangeFilter";
 import { exportToCSV, fmtCSVDate, fmtCSVAmount } from "@/lib/csv";
@@ -36,6 +37,7 @@ export default function VendorsPage() {
   const user = getUser();
   const businessId = user?.business?.id;
 
+  const { confirm } = useToast();
   const [tab,               setTab]               = useState<TabType>("Vendors");
   const [vendors,           setVendors]           = useState<Vendor[]>([]);
   const [bills,             setBills]             = useState<Bill[]>([]);
@@ -121,7 +123,14 @@ export default function VendorsPage() {
   };
 
   const handleDeleteRecurring = async (id: string) => {
-    if (!confirm("Delete this recurring bill?")) return;
+    const ok = await confirm({
+      title: "Delete Recurring Bill?",
+      message: "This recurring bill will be permanently deleted. No future bills will be generated from it.",
+      confirmText: "Delete",
+      cancelText: "Keep",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteRecurringBill(id);
       setRecurring((prev) => prev.filter((r) => r.id !== id));
@@ -129,7 +138,14 @@ export default function VendorsPage() {
   };
 
   const handleDeleteVendor = async (id: string) => {
-    if (!confirm("Delete this vendor?")) return;
+    const ok = await confirm({
+      title: "Delete Vendor?",
+      message: "This vendor will be permanently deleted. Associated bills will remain but the vendor link will be removed.",
+      confirmText: "Delete",
+      cancelText: "Keep",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteVendor(id);
       setVendors((prev) => prev.filter((v) => v.id !== id));
@@ -137,7 +153,14 @@ export default function VendorsPage() {
   };
 
   const handleDeleteBill = async (id: string) => {
-    if (!confirm("Delete this bill?")) return;
+    const ok = await confirm({
+      title: "Delete Bill?",
+      message: "This bill and all its payment records will be permanently deleted.",
+      confirmText: "Delete",
+      cancelText: "Keep",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteBill(id);
       setBills((prev) => prev.filter((b) => b.id !== id));

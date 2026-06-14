@@ -5,8 +5,9 @@ import {
   useContext,
   useState,
   useCallback,
-  //   useRef,
+  useEffect,
 } from "react";
+import { Trash2, AlertTriangle } from "lucide-react";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -164,6 +165,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setConfirmState(null);
   };
 
+  useEffect(() => {
+    if (!confirm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleConfirm(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirm]);
+
   return (
     <ToastContext.Provider value={value}>
       {children}
@@ -219,28 +229,57 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Confirm dialog */}
       {confirm && (
         <>
-          <div className="fixed inset-0 z-200 bg-black/40 backdrop-blur-sm" />
-          <div className="fixed inset-0 z-201 flex items-center justify-center p-6">
-            <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-sm p-6">
-              <h3 className="text-base font-semibold text-foreground mb-2">
-                {confirm.options.title}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                {confirm.options.message}
-              </p>
-              <div className="flex gap-3">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-200 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150"
+            onClick={() => handleConfirm(false)}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 z-201 flex items-center justify-center p-6 pointer-events-none">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+
+              {/* Icon + content */}
+              <div className="flex flex-col items-center text-center px-7 pt-8 pb-6">
+                <div
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 ${
+                    confirm.options.danger
+                      ? "bg-destructive/10"
+                      : "bg-primary/10"
+                  }`}
+                >
+                  {confirm.options.danger ? (
+                    <Trash2 className="w-7 h-7 text-destructive" />
+                  ) : (
+                    <AlertTriangle className="w-7 h-7 text-primary" />
+                  )}
+                </div>
+
+                <h3 className="text-lg font-bold text-foreground leading-tight">
+                  {confirm.options.title}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2.5 leading-relaxed max-w-xs">
+                  {confirm.options.message}
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-border" />
+
+              {/* Buttons */}
+              <div className="flex gap-3 p-5">
                 <button
                   onClick={() => handleConfirm(false)}
-                  className="flex-1 py-2.5 border border-border text-sm font-medium rounded-lg text-muted-foreground hover:bg-muted transition"
+                  className="flex-1 py-2.5 border border-border bg-background text-sm font-semibold rounded-xl text-muted-foreground hover:bg-muted transition-all active:scale-[0.98]"
                 >
                   {confirm.options.cancelText ?? "Cancel"}
                 </button>
                 <button
                   onClick={() => handleConfirm(true)}
-                  className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition ${
+                  className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all active:scale-[0.98] shadow-sm ${
                     confirm.options.danger
-                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-destructive/20"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20"
                   }`}
                 >
                   {confirm.options.confirmText ?? "Confirm"}

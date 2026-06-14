@@ -13,6 +13,7 @@ import {
   Users, UserPlus, Trash2, Info, ArrowLeft,
   Lock, Loader2, Check, Mail, Clock,
 } from "lucide-react";
+import { emailRules } from "@/lib/validators";
 
 type InviteForm = { email: string; role: MemberRole };
 
@@ -68,7 +69,7 @@ export default function TeamSection() {
   const [mounted,        setMounted]        = useState(false);
   const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
 
-  const { register, control, handleSubmit, reset, formState: { isSubmitting } } =
+  const { register, control, handleSubmit, reset, formState: { isSubmitting, errors } } =
     useForm<InviteForm>({ defaultValues: { email: "", role: "VIEWER" } });
 
   const selectedRole = useWatch({ control, name: "role" });
@@ -266,9 +267,10 @@ export default function TeamSection() {
                 <label className={lbl}>Email address</label>
                 <input
                   type="email" placeholder="colleague@example.com"
-                  {...register("email", { required: true })}
-                  className={inp}
+                  {...register("email", { required: "Email is required", ...emailRules })}
+                  className={errors.email ? `${inp} border-destructive bg-destructive/5` : inp}
                 />
+                {errors.email && <p className="text-xs text-destructive mt-1.5">{errors.email.message}</p>}
               </div>
               <div>
                 <label className={lbl}>Role</label>
