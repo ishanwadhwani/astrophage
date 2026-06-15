@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PanelLeftOpen, Cable } from "lucide-react";
 
 import SidebarNew from "./SidebarNew";
+import NotificationBell from "./NotificationBell";
 
 export default function DashboardShell({
   children,
@@ -15,12 +16,12 @@ export default function DashboardShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* ── Desktop sidebar — always visible ─────────────────────────── */}
+      {/* Desktop sidebar — always visible */}
       <div className="hidden shrink-0 lg:flex lg:w-56">
         <SidebarNew />
       </div>
 
-      {/* ── Mobile: backdrop ─────────────────────────────────────────── */}
+      {/* Mobile: backdrop */}
       <div
         aria-hidden="true"
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] lg:hidden transition-all duration-300 ${
@@ -31,7 +32,7 @@ export default function DashboardShell({
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* ── Mobile: drawer — always in DOM, slides in/out ────────────── */}
+      {/* Mobile: drawer — always in DOM, slides in/out */}
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 shadow-2xl shadow-black/20 lg:hidden
           transition-transform duration-300 ease-drawer
@@ -40,10 +41,10 @@ export default function DashboardShell({
         <SidebarNew onClose={() => setSidebarOpen(false)} />
       </div>
 
-      {/* ── Main content ─────────────────────────────────────────────── */}
+      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile top bar */}
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="group -ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
@@ -62,12 +63,18 @@ export default function DashboardShell({
               </span>
             </Link>
           </div>
+
+          {/* Bell in header on mobile — panel opens downward */}
+          <div className="ml-auto">
+            <NotificationBell placement="header" />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>
+
     </div>
   );
 }

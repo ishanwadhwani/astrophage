@@ -591,17 +591,26 @@ export default function InvoiceDetailPage() {
 
                 <form onSubmit={handleSubmit(onRecordPayment)} noValidate className="p-5 space-y-4">
                   <div>
-                    <label className={lbl}>Amount (₹) <span className="text-destructive">*</span></label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={`${lbl} mb-0`}>Amount (₹) <span className="text-destructive">*</span></label>
+                      <span className="text-[10px] font-semibold text-muted-foreground">
+                        Max: <span className="text-foreground">{fmt(outstanding)}</span>
+                      </span>
+                    </div>
                     <input
                       type="number" min="1" step="0.01"
                       {...register("amount", {
                         required: "Amount is required",
-                        min: { value: 1, message: "Minimum ₹1" },
                         valueAsNumber: true,
+                        min: { value: 0.01, message: "Amount must be at least ₹0.01" },
+                        max: { value: outstanding, message: `Cannot exceed outstanding balance of ${fmt(outstanding)}` },
                       })}
                       className={errors.amount ? `${inp} border-destructive bg-destructive/5` : inp}
                     />
-                    {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
+                    {errors.amount
+                      ? <p className="text-xs text-destructive mt-1.5">{errors.amount.message}</p>
+                      : <p className="text-xs text-muted-foreground mt-1.5">{fmt(outstanding)} remaining on this invoice</p>
+                    }
                   </div>
 
                   <div>

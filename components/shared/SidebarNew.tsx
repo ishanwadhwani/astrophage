@@ -19,6 +19,7 @@ import {
 
 import { logout } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import NotificationBell from "./NotificationBell";
 
 const BusinessSwitcher = dynamic(() => import("./BusinessSwitcher"), {
   ssr: false,
@@ -147,6 +148,11 @@ export default function SidebarNew({ onClose }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* ── Notifications ──────────────────────────────────────────────── */}
+      <div className="border-t border-border px-3 py-2">
+        <NotificationBell placement="sidebar" />
+      </div>
 
       {/* ── Business switcher ──────────────────────────────────────────── */}
       <div className="border-t border-border">
