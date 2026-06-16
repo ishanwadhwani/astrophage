@@ -11,6 +11,31 @@ export interface VendorSpendingRow {
   outstanding: number;
 }
 
+export interface HealthReport {
+  period: { from: string; to: string };
+  cashflow: { cashIn: number; cashOut: number; netCashflow: number };
+  profitLoss: {
+    totalBilled: number;
+    taxableRevenue: number;
+    gstCollected: number;
+    totalExpenses: number;
+    grossProfit: number;
+    profitMargin: number;
+  };
+  position: {
+    receivablesOutstanding: number;
+    payablesOutstanding: number;
+    netPosition: number;
+  };
+  topExpenses: { vendor: string; amount: number }[];
+  monthlyTrend: {
+    month: string;
+    cashIn: number;
+    cashOut: number;
+    net: number;
+  }[];
+}
+
 export const fetchGSTReport = async (
   businessId: string,
   from: string,
@@ -36,6 +61,18 @@ export const fetchVendorSpending = async (
 ): Promise<VendorSpendingReport> => {
   const res = await axiosInstance.get<VendorSpendingReport>(
     `/api/businesses/${businessId}/vendor-spending`,
+    { params: { from, to } },
+  );
+  return res.data;
+};
+
+export const fetchHealthReport = async (
+  businessId: string,
+  from: string,
+  to: string,
+): Promise<HealthReport> => {
+  const res = await axiosInstance.get<HealthReport>(
+    `/api/businesses/${businessId}/health-report`,
     { params: { from, to } },
   );
   return res.data;
