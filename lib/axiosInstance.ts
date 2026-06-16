@@ -23,7 +23,7 @@ export function invalidateCache(urlFragment?: string) {
 // Axios instance 
 
 export const axiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true, // for cross-domain auth cookie
 });
 
