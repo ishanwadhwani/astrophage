@@ -30,7 +30,14 @@ export const loginUser = async (
 export const saveAuth = (data: AuthResponse): void => {
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data.user));
-  document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
+
+  const isProd = process.env.NODE_ENV === "production";
+  const cookieFlags = isProd
+    ? "path=/; max-age=604800; SameSite=None; Secure" // cross-domain prod
+    : "path=/; max-age=604800; SameSite=Strict"; // local dev
+
+  document.cookie = `auth-token=${data.token}; ${cookieFlags}`;
+  // document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
 };
 
 export const getUser = (): User | null => {
@@ -58,9 +65,18 @@ export const switchBusiness = (business: BusinessSummary): void => {
   window.location.href = "/dashboard";
 };
 
+// export const logout = (): void => {
+//   localStorage.removeItem("token");
+//   localStorage.removeItem("user");
+//   document.cookie = "auth-token=; path=/; max-age=0; SameSite=Strict";
+//   window.location.href = "/login";
+// };
+
 export const logout = (): void => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
-  document.cookie = "auth-token=; path=/; max-age=0; SameSite=Strict";
+  const isProd = process.env.NODE_ENV === "production";
+  const flags = isProd ? "SameSite=None; Secure" : "SameSite=Strict";
+  document.cookie = `auth-token=; path=/; max-age=0; ${flags}`;
   window.location.href = "/login";
 };
