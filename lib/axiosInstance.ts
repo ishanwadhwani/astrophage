@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
 
-// ── In-memory GET cache ───────────────────────────────────────────────────────
+// ── In-memory GET cache 
 // 30-second TTL. Revisiting any page within that window returns instantly.
 
 const CACHE_TTL = 5 * 60_000; // 5 minutes
@@ -20,13 +20,14 @@ export function invalidateCache(urlFragment?: string) {
   }
 }
 
-// ── Axios instance ────────────────────────────────────────────────────────────
+// Axios instance 
 
 export const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  withCredentials: true, // for cross-domain auth cookie
 });
 
-// ── Request interceptor: auth + cache shortcut ────────────────────────────────
+// Request interceptor: auth + cache shortcut
 // Setting config.adapter per-request overrides only that request; it does NOT
 // touch axios.defaults.adapter (which may be the string 'xhr' or 'fetch' in v1).
 
@@ -50,7 +51,7 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Response interceptor: populate cache + 401 redirect ──────────────────────
+// Response interceptor: populate cache + 401 redirect
 
 axiosInstance.interceptors.response.use(
   (response) => {
