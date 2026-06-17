@@ -56,6 +56,13 @@ export const getAllBusinesses = (): BusinessSummary[] => {
   return getUser()?.businesses ?? [];
 };
 
+// active business
+export const setActiveBusiness = (business: BusinessSummary): void => {
+  const user = getUser();
+  if (!user) return;
+  localStorage.setItem("user", JSON.stringify({ ...user, business }));
+};
+
 // Switch active business — updates localStorage, reloads page
 export const switchBusiness = (business: BusinessSummary): void => {
   const user = getUser();

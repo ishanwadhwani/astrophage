@@ -11,6 +11,8 @@ const AUTH_PATHS = [
   "/vendors",
   "/onboarding",
   "/reports",
+  "/select-business",
+  "/no-business",
 ];
 
 export function middleware(request: NextRequest) {
@@ -19,7 +21,7 @@ export function middleware(request: NextRequest) {
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isProtectedPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
-  const isAcceptInvite  = pathname.startsWith("/accept-invite");
+  const isAcceptInvite = pathname.startsWith("/accept-invite");
 
   if (!token && isProtectedPath) {
     return NextResponse.redirect(new URL("/login", request.url));

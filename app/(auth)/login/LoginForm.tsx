@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { axiosInstance } from "@/lib/axiosInstance";
-import { loginUser, saveAuth, getUser } from "@/lib/auth";
+import { loginUser, saveAuth, getUser, setActiveBusiness } from "@/lib/auth";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -71,7 +71,17 @@ export default function LoginForm() {
         window.location.href = "/dashboard";
         return;
       }
+      const businesses = data.user.businesses ?? [];
 
+      // business picker logic 
+      if (businesses.length === 0) {
+        router.replace("/no-business");
+      } else if (businesses.length === 1) {
+        setActiveBusiness(businesses[0]);
+        router.replace("/dashboard");
+      } else {
+        router.replace("/select-business");
+      }
       router.push("/dashboard");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PanelLeftOpen, Cable } from "lucide-react";
 
+import { getUser, setActiveBusiness } from "@/lib/auth";
 import SidebarNew from "./SidebarNew";
 import NotificationBell from "./NotificationBell";
 
@@ -13,6 +14,24 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      window.location.assign("/login");
+      return;
+    }
+    if (!user.business) {
+      const list = user.businesses ?? [];
+      if (list.length === 0) {
+        window.location.assign("/no-business");
+      } else if (list.length === 1) {
+        setActiveBusiness(list[0]);
+      } else {
+        window.location.assign("/select-business");
+      }
+    }
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -74,7 +93,6 @@ export default function DashboardShell({
           {children}
         </main>
       </div>
-
     </div>
   );
 }

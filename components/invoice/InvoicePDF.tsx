@@ -9,11 +9,21 @@ import {
 import { Invoice } from "@/types/invoice";
 import { numberToWords } from "@/lib/numberToWords";
 import { getStateCode } from "@/lib/gst";
+import { Font } from "@react-pdf/renderer";
 
 interface Props {
   invoice: Invoice;
   qrDataUrl?: string;
 }
+
+Font.register({
+  family: "NotoSans",
+  fonts: [
+    { src: "/fonts/NotoSans-Regular.ttf" },
+    { src: "/fonts/NotoSans-Bold.ttf", fontWeight: 700 },
+    { src: "/fonts/NotoSans-Italic.ttf", fontWeight: 400, fontStyle: "italic" },
+  ],
+});
 
 const C = {
   primary: "#2563EB",
@@ -29,7 +39,7 @@ const C = {
 
 const s = StyleSheet.create({
   page: {
-    fontFamily: "Helvetica",
+    fontFamily: "NotoSans",
     fontSize: 9,
     color: C.dark,
     backgroundColor: C.white,
@@ -48,7 +58,8 @@ const s = StyleSheet.create({
   },
   businessName: {
     fontSize: 16,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
     marginBottom: 3,
   },
@@ -57,7 +68,8 @@ const s = StyleSheet.create({
   },
   invoiceTitle: {
     fontSize: 22,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.primary,
     letterSpacing: 2,
   },
@@ -89,7 +101,8 @@ const s = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.muted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -97,7 +110,8 @@ const s = StyleSheet.create({
   },
   infoName: {
     fontSize: 10,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
     marginBottom: 3,
   },
@@ -125,7 +139,8 @@ const s = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.muted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -133,7 +148,8 @@ const s = StyleSheet.create({
   },
   dateValue: {
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
   },
 
@@ -163,7 +179,8 @@ const s = StyleSheet.create({
   },
   thText: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.white,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -174,7 +191,8 @@ const s = StyleSheet.create({
   },
   tdBold: {
     fontSize: 8,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
   },
 
@@ -210,7 +228,8 @@ const s = StyleSheet.create({
   },
   totalValue: {
     fontSize: 8,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
   },
   grandTotalRow: {
@@ -224,12 +243,14 @@ const s = StyleSheet.create({
   },
   grandTotalLabel: {
     fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.white,
   },
   grandTotalValue: {
     fontSize: 10,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.white,
   },
 
@@ -244,7 +265,8 @@ const s = StyleSheet.create({
   },
   wordsLabel: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.muted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -252,7 +274,8 @@ const s = StyleSheet.create({
   },
   wordsText: {
     fontSize: 8,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.dark,
   },
 
@@ -274,7 +297,8 @@ const s = StyleSheet.create({
   },
   bankKey: {
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: C.muted,
     width: 80,
   },
@@ -324,7 +348,8 @@ const s = StyleSheet.create({
   },
   qrAmount: {
     fontSize: 10,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     color: "#2563EB",
     marginTop: 2,
     textAlign: "center",
@@ -334,7 +359,8 @@ const s = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
     textAlign: "center",
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
   },
 
   // Footer
@@ -358,7 +384,8 @@ const s = StyleSheet.create({
     backgroundColor: C.primary,
     color: C.white,
     fontSize: 7,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "NotoSans",
+    fontWeight: 700,
     padding: "2 6",
     borderRadius: 3,
   },
@@ -433,7 +460,9 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
           </View>
           <View style={s.dateBox}>
             <Text style={s.dateLabel}>Place of Supply</Text>
-            <Text style={s.dateValue}>{invoice.placeOfSupply}</Text>
+            <Text style={s.dateValue}>
+              {invoice.placeOfSupply} ({getStateCode(invoice.placeOfSupply)})
+            </Text>
           </View>
           <View style={s.dateBox}>
             <Text style={s.dateLabel}>Reverse Charge</Text>
@@ -568,7 +597,8 @@ export function InvoicePDF({ invoice, qrDataUrl }: Props) {
               <Text
                 style={{
                   fontSize: 7,
-                  fontFamily: "Helvetica-Bold",
+                  fontFamily: "NotoSans",
+                  fontWeight: 700,
                   color: "#64748B",
                   textTransform: "uppercase",
                   letterSpacing: 0.8,

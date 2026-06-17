@@ -10,7 +10,7 @@ import {
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import PermissionGate from "@/components/ui/PermissionGate";
-import { Sheet, ReceiptIndianRupee, FileBarChart, ChevronRight } from "lucide-react";
+import { Sheet, ReceiptIndianRupee, FileBarChart, ChevronRight, BriefcaseBusiness } from "lucide-react";
 import DateRangeFilter, { DateRange } from "@/components/ui/DateRangeFilter";
 import { HealthReport, fetchHealthReport } from "@/lib/reports";
 
@@ -127,6 +127,7 @@ export default function ReportsPage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
+              <BriefcaseBusiness className="w-4 h-4" />
               Business Health
             </button>
             <button
