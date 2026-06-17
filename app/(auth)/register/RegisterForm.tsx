@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { registerUser, saveAuth, getUser } from "@/lib/auth";
 import { axiosInstance } from "@/lib/axiosInstance";
+import AuthSplit from "../_components/AuthSplit";
 
 interface InvitePreview {
   businessName: string;
@@ -102,117 +103,126 @@ export default function RegisterForm() {
 
       router.push("/onboarding");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Registration failed";
+      const errorMessage =
+        err instanceof Error ? err.message : "Registration failed";
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const inp =
+    "w-full px-4 py-3 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all duration-150";
+  const lbl =
+    "block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+    <AuthSplit>
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">
           Create your account
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-muted-foreground mt-1">
           {invitePreview
-            ? `You're joining ${invitePreview.businessName} as ${invitePreview.role}`
+            ? `Joining ${invitePreview.businessName} as ${invitePreview.role}`
             : "Get started with CashFlow Command"}
         </p>
+      </div>
 
-        {invitePreview && (
-          <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-            Invited to <strong>{invitePreview.businessName}</strong> ·{" "}
-            {invitePreview.role} role
+      {invitePreview && (
+        <div className="mb-5 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+          <p className="text-sm text-foreground">
+            Invited to{" "}
+            <span className="font-semibold">{invitePreview.businessName}</span>{" "}
+            · {invitePreview.role} role
+          </p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className={lbl}>Full name</label>
+          <input
+            type="text"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            required
+            placeholder="Ishan Sharma"
+            className={inp}
+          />
+        </div>
+
+        <div>
+          <label className={lbl}>Email address</label>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            placeholder="you@example.com"
+            className={inp}
+          />
+        </div>
+
+        <div>
+          <label className={lbl}>Password</label>
+          <input
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            required
+            placeholder="••••••••"
+            className={inp}
+          />
+        </div>
+
+        {/* Only show businessName when NOT joining via invite */}
+        {!inviteToken && (
+          <div>
+            <label className={lbl}>Business name</label>
+            <input
+              type="text"
+              name="businessName"
+              value={form.businessName}
+              onChange={handleChange}
+              required
+              placeholder="My Business"
+              className={inp}
+            />
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              placeholder="Ishan Sharma"
-              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-            />
+        {error && (
+          <div className="px-4 py-3 bg-destructive/5 border border-destructive/20 rounded-xl">
+            <p className="text-sm text-destructive">{error}</p>
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              placeholder="you@example.com"
-              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              placeholder="••••••••"
-              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-            />
-          </div>
-
-          {/* Only show businessName when NOT joining via invite */}
-          {!inviteToken && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Business name
-              </label>
-              <input
-                type="text"
-                name="businessName"
-                value={form.businessName}
-                onChange={handleChange}
-                required
-                placeholder="My Business"
-                className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-              />
-            </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 px-4 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2 mt-6!"
+        >
+          {loading && (
+            <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
           )}
+          {loading ? "Creating account…" : "Create account"}
+        </button>
+      </form>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
-          >
-            {loading ? "Creating account..." : "Create account"}
-          </button>
-        </form>
-
-        <p className="text-sm text-gray-500 mt-6 text-center">
-          Already have an account?{" "}
-          <Link
-            href={inviteToken ? `/login?invite=${inviteToken}` : "/login"}
-            className="text-gray-900 font-medium hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-sm text-muted-foreground mt-6 text-center">
+        Already have an account?{" "}
+        <Link
+          href={inviteToken ? `/login?invite=${inviteToken}` : "/login"}
+          className="text-primary font-semibold hover:underline"
+        >
+          Sign in
+        </Link>
+      </p>
+    </AuthSplit>
   );
 }

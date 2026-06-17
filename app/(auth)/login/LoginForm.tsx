@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { axiosInstance } from "@/lib/axiosInstance";
-import { loginUser, saveAuth, getUser, setActiveBusiness } from "@/lib/auth";
+import { loginUser, saveAuth, getUser } from "@/lib/auth";
+import AuthSplit from "../_components/AuthSplit";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -71,17 +72,7 @@ export default function LoginForm() {
         window.location.href = "/dashboard";
         return;
       }
-      const businesses = data.user.businesses ?? [];
 
-      // business picker logic 
-      if (businesses.length === 0) {
-        router.replace("/no-business");
-      } else if (businesses.length === 1) {
-        setActiveBusiness(businesses[0]);
-        router.replace("/dashboard");
-      } else {
-        router.replace("/select-business");
-      }
       router.push("/dashboard");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
@@ -91,68 +82,76 @@ export default function LoginForm() {
     }
   };
 
+  const inp =
+    "w-full px-4 py-3 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all duration-150";
+  const lbl =
+    "block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+    <AuthSplit>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">
           Welcome back
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-muted-foreground mt-1">
           Sign in to CashFlow Command
         </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              placeholder="you@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-gray-500 transition"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-sm text-gray-500 mt-6 text-center">
-          Don&apos;t have an account?{" "}
-          <Link
-            href={inviteToken ? `/register?invite=${inviteToken}` : "/register"}
-            className="text-gray-900 font-medium hover:underline"
-          >
-            Register
-          </Link>
-        </p>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className={lbl}>Email address</label>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            placeholder="you@example.com"
+            className={inp}
+          />
+        </div>
+
+        <div>
+          <label className={lbl}>Password</label>
+          <input
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            required
+            placeholder="••••••••"
+            className={inp}
+          />
+        </div>
+
+        {error && (
+          <div className="px-4 py-3 bg-destructive/5 border border-destructive/20 rounded-xl">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 px-4 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
+        >
+          {loading && (
+            <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+          )}
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <p className="text-sm text-muted-foreground mt-6 text-center">
+        Don&apos;t have an account?{" "}
+        <Link
+          href={inviteToken ? `/register?invite=${inviteToken}` : "/register"}
+          className="text-primary font-semibold hover:underline"
+        >
+          Create one
+        </Link>
+      </p>
+    </AuthSplit>
   );
 }
