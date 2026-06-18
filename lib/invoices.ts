@@ -1,6 +1,10 @@
 import { axiosInstance, invalidateCache } from "./axiosInstance";
 import {
   Invoice,
+  InvoiceStatus,
+  InvoiceSortOrder,
+  InvoiceStats,
+  PaginatedInvoicesResponse,
   CreateInvoicePayload,
   RecordPaymentPayload,
   RecurringInvoice,
@@ -140,5 +144,44 @@ export const bulkDeleteInvoices = async (
     { data: { ids, businessId } },
   );
   invalidateCache();
+  return res.data;
+};
+
+export const fetchInvoiceStats = async (
+  businessId: string,
+): Promise<InvoiceStats> => {
+  const res = await axiosInstance.get<InvoiceStats>("/api/invoices/stats", {
+    params: { businessId },
+  });
+  return res.data;
+};
+
+export const fetchInvoicesPaginated = async (
+  businessId: string,
+  params: {
+    page: number;
+    pageSize: number;
+    sort: InvoiceSortOrder;
+    search?: string;
+    status?: InvoiceStatus | "ALL";
+    dateFrom?: string;
+    dateTo?: string;
+  },
+): Promise<PaginatedInvoicesResponse> => {
+  const query: Record<string, unknown> = {
+    businessId,
+    page: params.page,
+    pageSize: params.pageSize,
+    sort: params.sort,
+  };
+  if (params.search) query.search = params.search;
+  if (params.status && params.status !== "ALL") query.status = params.status;
+  if (params.dateFrom) query.dateFrom = params.dateFrom;
+  if (params.dateTo) query.dateTo = params.dateTo;
+
+  const res = await axiosInstance.get<PaginatedInvoicesResponse>(
+    "/api/invoices",
+    { params: query },
+  );
   return res.data;
 };

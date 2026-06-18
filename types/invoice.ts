@@ -200,3 +200,17 @@ export interface RecurringInvoiceDetail {
   };
   count: number;
 }
+
+export interface InvoiceStats {
+  totalReceivables: number;
+  overdueCount: number;
+  paidCount: number;
+  totalCount: number;
+}
+
+export interface PaginatedInvoicesResponse {
+  data: Invoice[];
+  total: number;
+}
+
+export type InvoiceSortOrder = "newest" | "oldest";
