@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
+  Info,
 } from "lucide-react";
 
 import { Invoice, InvoiceStatus, RecurringInvoice } from "@/types/invoice";
@@ -152,12 +153,48 @@ export default function InvoicesPage() {
     }
   };
 
+  // const handleDelete = async (id: string) => {
+  //   if (!confirm) return;
+  //   try {
+  //     await deleteInvoice(id);
+  //     setInvoices((prev) => prev.filter((i) => i.id !== id));
+  //   } catch {}
+  // };
+
   const handleDelete = async (id: string) => {
-    if (!confirm) return;
+    const invoice = invoices.find((i) => i.id === id);
+    if (!invoice) return;
+
+    const paid = invoice.payments.reduce((s, p) => s + p.amount, 0);
+    const outstanding = invoice.total - paid;
+
+    const confirmed = await confirm({
+      title: `Move invoice #${invoice.number} to bin?`,
+      message:
+        `This invoice will be removed from your active list and excluded from ` +
+        `receivables, collected totals, the dashboard, and GST reports. ` +
+        (outstanding > 0
+          ? `₹${outstanding.toLocaleString("en-IN")} of outstanding receivables will no longer be counted. `
+          : ``) +
+        (paid > 0
+          ? `₹${paid.toLocaleString("en-IN")} of recorded payments will be excluded from your collected total. `
+          : ``) +
+        `You can restore it anytime from the Recycle Bin.`,
+      confirmText: "Move to bin",
+      danger: true,
+    });
+    if (!confirmed) return;
+
     try {
       await deleteInvoice(id);
       setInvoices((prev) => prev.filter((i) => i.id !== id));
-    } catch {}
+      success(
+        "Moved to bin",
+        `Invoice #${invoice.number} can be restored from the bin.`,
+      );
+    } catch {
+      error("Failed to delete invoice");
+    }
   };
 
   const fmt = (n: number) =>
@@ -403,21 +440,7 @@ export default function InvoicesPage() {
       {pageTab === "recurring" && (
         <>
           <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-xl px-4 py-3">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="flex-shrink-0 mt-0.5"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
+            <Info className="w-4 h-4 text-primary mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Recurring invoices are{" "}
               <strong className="text-foreground">templates</strong> that
