@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Turbopack filesystem cache can get corrupted when many new files are added.
+    // Use in-memory cache until the project stabilises.
+    turbopackFileSystemCacheForDev: false,
+  },
+
   webpack(config, { dev, isServer }) {
     if (!dev) {
       // Production builds: spill the webpack module cache to disk instead of RAM.

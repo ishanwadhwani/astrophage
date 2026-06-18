@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Trash2,
-  FilePlus,
-  Banknote,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-  Info,
-} from "lucide-react";
+import { FilePlus, RefreshCw, Info, Trash2 } from "lucide-react";
 
-import { Invoice, InvoiceStatus, RecurringInvoice } from "@/types/invoice";
 import {
-  fetchInvoices,
+  Invoice,
+  InvoiceStatus,
+  InvoiceSortOrder,
+  InvoiceStats,
+  RecurringInvoice,
+} from "@/types/invoice";
+import {
+  fetchInvoicesPaginated,
+  fetchInvoiceStats,
   deleteInvoice,
   fetchRecurringInvoices,
   toggleRecurringInvoice,
@@ -24,97 +23,145 @@ import {
 } from "@/lib/invoices";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useToast } from "@/components/ui/Toast";
+import PermissionGate from "@/components/ui/PermissionGate";
+import { fetchClients } from "@/lib/clients";
+import { Client } from "@/types/client";
+
+import InvoiceKPICards from "./_components/InvoiceKPICards";
+import InvoiceBulkBar from "./_components/InvoiceBulkBar";
 import InvoiceFilters from "./_components/InvoiceFilters";
 import InvoiceTable from "./_components/InvoiceTable";
 import RecurringInvoiceTable from "./_components/RecurringInvoiceTable";
 import AddRecurringInvoiceModal from "./_components/AddRecurringInvoiceModal";
-import { fetchClients } from "@/lib/clients";
-import { Client } from "@/types/client";
 import InvoiceExportButton, {
   RecurringInvoiceExportButton,
 } from "./_components/ExportButton";
-import { useToast } from "@/components/ui/Toast";
-import PermissionGate from "@/components/ui/PermissionGate";
+
+const PAGE_SIZE = 10;
+
+type PageTab = "invoices" | "recurring";
+
+const EMPTY_STATS: InvoiceStats = {
+  totalReceivables: 0,
+  overdueCount: 0,
+  paidCount: 0,
+  totalCount: 0,
+};
 
 export default function InvoicesPage() {
   const user = getUser();
   const router = useRouter();
   const businessId = user?.business?.id;
-  type PageTab = "invoices" | "recurring";
+  const { confirm, success, error } = useToast();
 
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  //Pagination & filter state
+  const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>("newest");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<InvoiceStatus | "ALL">("ALL");
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+
+  //Data state
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<InvoiceStats>(EMPTY_STATS);
+  const [initialized, setInitialized] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  //Tab / modal / selection
   const [pageTab, setPageTab] = useState<PageTab>("invoices");
   const [recurring, setRecurring] = useState<RecurringInvoice[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [recurringModal, setRecurringModal] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
-  const { confirm, success, error } = useToast();
-
+  // Debounce search input (400 ms)
   useEffect(() => {
-    if (!businessId) return;
+    const id = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1);
+      setSelected(new Set());
+    }, 400);
+    return () => clearTimeout(id);
+  }, [searchInput]);
 
-    const fetchData = async () => {
+  // Reset page + selection whenever a filter changes
+  const handleStatusChange = (v: InvoiceStatus | "ALL") => {
+    setStatus(v);
+    setPage(1);
+    setSelected(new Set());
+  };
+  const handleDateRange = (v: { from: string; to: string }) => {
+    setDateRange(v);
+    setPage(1);
+    setSelected(new Set());
+  };
+  const handleSortChange = (v: InvoiceSortOrder) => {
+    setSortOrder(v);
+    setPage(1);
+    setSelected(new Set());
+  };
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    setSelected(new Set());
+  };
+
+  // Fetch paginated invoices
+  useEffect(() => {
+    if (!businessId) {
+      const id = setTimeout(() => setInitialized(true), 0);
+      return () => clearTimeout(id);
+    }
+
+    let canceled = false;
+
+    const doFetch = async () => {
+      setLoading(true);
       try {
-        const [invoiceResult, recurringResult, clientResult] =
-          await Promise.allSettled([
-            fetchInvoices(businessId),
-            fetchRecurringInvoices(businessId),
-            fetchClients(businessId),
-          ]);
-
-        if (invoiceResult.status === "fulfilled")
-          setInvoices(invoiceResult.value);
-        if (recurringResult.status === "fulfilled")
-          setRecurring(recurringResult.value);
-        if (clientResult.status === "fulfilled") setClients(clientResult.value);
+        const { data, total: t } = await fetchInvoicesPaginated(businessId, {
+          page,
+          pageSize: PAGE_SIZE,
+          sort: sortOrder,
+          search: debouncedSearch || undefined,
+          status: status !== "ALL" ? status : undefined,
+          dateFrom: dateRange.from || undefined,
+          dateTo: dateRange.to || undefined,
+        });
+        if (canceled) return;
+        setInvoices(data);
+        setTotal(t);
+        setInitialized(true);
       } catch {
+        if (!canceled) setInitialized(true);
       } finally {
-        setLoading(false);
+        if (!canceled) setLoading(false);
       }
     };
 
-    void fetchData();
+    void doFetch();
+
+    return () => {
+      canceled = true;
+    };
+  }, [businessId, page, sortOrder, debouncedSearch, status, dateRange]);
+
+  // Fetch recurring, clients, and global stats once on mount
+  useEffect(() => {
+    if (!businessId) return;
+    Promise.allSettled([
+      fetchRecurringInvoices(businessId),
+      fetchClients(businessId),
+      fetchInvoiceStats(businessId),
+    ]).then(([recurringRes, clientRes, statsRes]) => {
+      if (recurringRes.status === "fulfilled") setRecurring(recurringRes.value);
+      if (clientRes.status === "fulfilled") setClients(clientRes.value);
+      if (statsRes.status === "fulfilled") setStats(statsRes.value);
+    });
   }, [businessId]);
 
-  const filtered = useMemo(() => {
-    return invoices.filter((inv) => {
-      const matchesStatus = status === "ALL" || inv.status === status;
-
-      const query = search.toLowerCase().trim();
-      const matchesSearch =
-        !query ||
-        inv.number.toLowerCase().includes(query) ||
-        inv.client.name.toLowerCase().includes(query);
-
-      const invDate = new Date(inv.invoiceDate);
-      const matchesFrom =
-        !dateRange.from || invDate >= new Date(dateRange.from);
-      const matchesTo =
-        !dateRange.to || invDate <= new Date(dateRange.to + "T23:59:59");
-
-      return matchesStatus && matchesSearch && matchesFrom && matchesTo;
-    });
-  }, [invoices, search, status, dateRange]);
-
-  const stats = useMemo(() => {
-    const totalReceivables = invoices
-      .filter((i) => i.status === "PENDING" || i.status === "OVERDUE")
-      .reduce((s, i) => {
-        const paid = i.payments.reduce((p, pay) => p + pay.amount, 0);
-        return s + (i.total - paid);
-      }, 0);
-
-    const overdueCount = invoices.filter((i) => i.status === "OVERDUE").length;
-    const paidCount = invoices.filter((i) => i.status === "PAID").length;
-
-    return { totalReceivables, overdueCount, paidCount };
-  }, [invoices]);
-
+  // Handlers
   const handleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -125,41 +172,11 @@ export default function InvoicesPage() {
 
   const handleSelectAll = () => {
     setSelected((prev) =>
-      prev.size === filtered.length
+      prev.size === invoices.length
         ? new Set()
-        : new Set(filtered.map((i) => i.id)),
+        : new Set(invoices.map((i) => i.id)),
     );
   };
-
-  const handleBulkDelete = async () => {
-    const confirmed = await confirm({
-      title: `Delete ${selected.size} invoice${selected.size !== 1 ? "s" : ""}`,
-      message:
-        "This will permanently delete the selected invoices and all their payment records.",
-      confirmText: "Delete all",
-      danger: true,
-    });
-    if (!confirmed) return;
-
-    try {
-      const result = await bulkDeleteInvoices([...selected], businessId!);
-      setInvoices((prev) => prev.filter((i) => !selected.has(i.id)));
-      setSelected(new Set());
-      success(
-        `${result.deleted} invoice${result.deleted !== 1 ? "s" : ""} deleted`,
-      );
-    } catch {
-      error("Failed to delete invoices");
-    }
-  };
-
-  // const handleDelete = async (id: string) => {
-  //   if (!confirm) return;
-  //   try {
-  //     await deleteInvoice(id);
-  //     setInvoices((prev) => prev.filter((i) => i.id !== id));
-  //   } catch {}
-  // };
 
   const handleDelete = async (id: string) => {
     const invoice = invoices.find((i) => i.id === id);
@@ -188,6 +205,23 @@ export default function InvoicesPage() {
     try {
       await deleteInvoice(id);
       setInvoices((prev) => prev.filter((i) => i.id !== id));
+      setTotal((t) => t - 1);
+      setStats((s) => ({
+        ...s,
+        totalCount: Math.max(0, s.totalCount - 1),
+        overdueCount:
+          invoice.status === "OVERDUE"
+            ? Math.max(0, s.overdueCount - 1)
+            : s.overdueCount,
+        paidCount:
+          invoice.status === "PAID"
+            ? Math.max(0, s.paidCount - 1)
+            : s.paidCount,
+        totalReceivables:
+          invoice.status === "PENDING" || invoice.status === "OVERDUE"
+            ? Math.max(0, s.totalReceivables - outstanding)
+            : s.totalReceivables,
+      }));
       success(
         "Moved to bin",
         `Invoice #${invoice.number} can be restored from the bin.`,
@@ -197,30 +231,81 @@ export default function InvoicesPage() {
     }
   };
 
-  const fmt = (n: number) =>
-    "₹" +
-    n.toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  const handleBulkDelete = async () => {
+    const confirmed = await confirm({
+      title: `Delete ${selected.size} invoice${selected.size !== 1 ? "s" : ""}`,
+      message:
+        "This will move the selected invoices to the bin. You can restore them anytime.",
+      confirmText: "Move to bin",
+      danger: true,
     });
+    if (!confirmed) return;
 
-  if (loading) return <LoadingState page="invoices" />;
+    try {
+      const result = await bulkDeleteInvoices([...selected], businessId!);
+      const deletedIds = new Set(selected);
+      const deletedInvoices = invoices.filter((i) => deletedIds.has(i.id));
+      const { overdueDecrease, paidDecrease, receivablesDecrease } =
+        deletedInvoices.reduce(
+          (acc, inv) => {
+            const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
+            return {
+              overdueDecrease:
+                acc.overdueDecrease + (inv.status === "OVERDUE" ? 1 : 0),
+              paidDecrease:
+                acc.paidDecrease + (inv.status === "PAID" ? 1 : 0),
+              receivablesDecrease:
+                acc.receivablesDecrease +
+                (inv.status === "PENDING" || inv.status === "OVERDUE"
+                  ? Math.max(0, inv.total - paid)
+                  : 0),
+            };
+          },
+          { overdueDecrease: 0, paidDecrease: 0, receivablesDecrease: 0 },
+        );
+      setInvoices((prev) => prev.filter((i) => !deletedIds.has(i.id)));
+      setTotal((t) => t - result.deleted);
+      setStats((s) => ({
+        ...s,
+        totalCount: Math.max(0, s.totalCount - result.deleted),
+        overdueCount: Math.max(0, s.overdueCount - overdueDecrease),
+        paidCount: Math.max(0, s.paidCount - paidDecrease),
+        totalReceivables: Math.max(0, s.totalReceivables - receivablesDecrease),
+      }));
+      setSelected(new Set());
+      success(
+        `${result.deleted} invoice${result.deleted !== 1 ? "s" : ""} moved to bin`,
+      );
+    } catch {
+      error("Failed to delete invoices");
+    }
+  };
+
+  if (!initialized) return <LoadingState page="invoices" />;
 
   return (
     <div className="space-y-6">
-      {/* ── Header ───────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Invoices</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {invoices.length} invoice{invoices.length !== 1 ? "s" : ""} total
+            {stats.totalCount} invoice{stats.totalCount !== 1 ? "s" : ""} total
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/invoices/bin"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-muted-foreground border border-border rounded-lg hover:bg-muted hover:text-foreground transition-all duration-150"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Bin
+          </Link>
+
           {pageTab === "invoices" ? (
             <PermissionGate permission="report:export">
-              <InvoiceExportButton invoices={filtered} label="Export" />
+              <InvoiceExportButton invoices={invoices} label="Export" />
             </PermissionGate>
           ) : (
             <PermissionGate permission="report:export">
@@ -253,96 +338,10 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Outstanding */}
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Outstanding
-              </p>
-              <p className="text-2xl font-bold text-foreground tabular-nums mt-2 leading-none">
-                {fmt(stats.totalReceivables)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Pending &amp; overdue receivables
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Banknote className="w-5 h-5 text-primary" />
-            </div>
-          </div>
-        </div>
+      {/* KPI cards */}
+      <InvoiceKPICards stats={stats} />
 
-        {/* Overdue */}
-        <div
-          className={`bg-card border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 ${
-            stats.overdueCount > 0
-              ? "border-status-overdue-foreground/25"
-              : "border-border"
-          }`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Overdue
-              </p>
-              <p
-                className={`text-2xl font-bold tabular-nums mt-2 leading-none ${
-                  stats.overdueCount > 0
-                    ? "text-status-overdue-foreground"
-                    : "text-foreground"
-                }`}
-              >
-                {stats.overdueCount}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {stats.overdueCount === 1
-                  ? "Invoice needs attention"
-                  : "Invoices need attention"}
-              </p>
-            </div>
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                stats.overdueCount > 0 ? "bg-status-overdue" : "bg-muted"
-              }`}
-            >
-              <AlertTriangle
-                className={`w-5 h-5 ${
-                  stats.overdueCount > 0
-                    ? "text-status-overdue-foreground"
-                    : "text-muted-foreground"
-                }`}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Paid */}
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Collected
-              </p>
-              <p className="text-2xl font-bold text-status-paid-foreground tabular-nums mt-2 leading-none">
-                {stats.paidCount}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {stats.paidCount === 1
-                  ? "Invoice fully paid"
-                  : "Invoices fully paid"}
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-status-paid flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-5 h-5 text-status-paid-foreground" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Tab switcher ─────────────────────────────────────────────── */}
+      {/* Tab switcher */}
       <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit">
         {(["invoices", "recurring"] as PageTab[]).map((t) => (
           <button
@@ -355,57 +354,37 @@ export default function InvoicesPage() {
             }`}
           >
             {t === "invoices"
-              ? `Invoices (${invoices.length})`
+              ? `Invoices (${stats.totalCount})`
               : `Recurring (${recurring.length})`}
           </button>
         ))}
       </div>
 
-      {/* ── Filters ──────────────────────────────────────────────────── */}
+      {/* Filters */}
       <InvoiceFilters
-        search={search}
+        search={searchInput}
         status={status}
         dateRange={dateRange}
-        onSearch={setSearch}
-        onStatusChange={setStatus}
-        onDateRange={setDateRange}
-        totalCount={invoices.length}
-        filteredCount={filtered.length}
+        sortOrder={sortOrder}
+        onSearch={setSearchInput}
+        onStatusChange={handleStatusChange}
+        onDateRange={handleDateRange}
+        onSortChange={handleSortChange}
+        totalCount={stats.totalCount}
+        filteredCount={total}
       />
 
-      {/* ── Bulk selection bar ───────────────────────────────────────── */}
-      {selected.size > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 bg-primary/5 border border-primary/20 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="text-sm text-foreground">
-            <span className="font-bold text-primary">{selected.size}</span>{" "}
-            invoice{selected.size !== 1 ? "s" : ""} selected
-          </div>
+      {/* Bulk selection bar */}
+      <InvoiceBulkBar
+        count={selected.size}
+        onClear={() => setSelected(new Set())}
+        onDelete={handleBulkDelete}
+      />
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSelected(new Set())}
-              className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Clear selection
-            </button>
-
-            <PermissionGate permission="invoice:delete">
-              <button
-                onClick={handleBulkDelete}
-                className="flex items-center gap-2 bg-background border border-destructive/30 text-destructive px-4 py-2 rounded-lg text-sm font-semibold hover:bg-destructive/10 hover:border-destructive/50 shadow-sm transition-all active:scale-[0.98]"
-              >
-                <Trash2 className="w-4 h-4" strokeWidth={2.5} />
-                Delete {selected.size}
-              </button>
-            </PermissionGate>
-          </div>
-        </div>
-      )}
-
-      {/* ── Invoice table ─────────────────────────────────────────────── */}
+      {/* Invoice table */}
       {pageTab === "invoices" && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-          {invoices.length === 0 ? (
+          {!loading && stats.totalCount === 0 ? (
             <div className="text-center py-20 px-6">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
                 <FilePlus className="w-7 h-7 text-muted-foreground/50" />
@@ -426,17 +405,22 @@ export default function InvoicesPage() {
             </div>
           ) : (
             <InvoiceTable
-              invoices={filtered}
+              invoices={invoices}
               selected={selected}
               onSelect={handleSelect}
               onSelectAll={handleSelectAll}
               onDelete={handleDelete}
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={handlePageChange}
+              loading={loading}
             />
           )}
         </div>
       )}
 
-      {/* Recurring table  */}
+      {/* Recurring table */}
       {pageTab === "recurring" && (
         <>
           <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-xl px-4 py-3">
