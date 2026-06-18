@@ -44,6 +44,19 @@ export const deleteInvoice = async (id: string): Promise<void> => {
   invalidateCache();
 };
 
+export const fetchDeletedInvoices = async (businessId: string) => {
+  const res = await axiosInstance.get(`/api/invoices/bin/list`, {
+    params: { businessId },
+  });
+  return res.data;
+};
+export const restoreInvoice = async (id: string) => {
+  await axiosInstance.put(`/api/invoices/bin/${id}/restore`);
+};
+export const permanentDeleteInvoice = async (id: string) => {
+  await axiosInstance.delete(`/api/invoices/bin/${id}`);
+};
+
 export const recordPayment = async (
   payload: RecordPaymentPayload,
 ): Promise<{
@@ -109,11 +122,11 @@ export const deleteRecurringInvoice = async (id: string): Promise<void> => {
 
 export const fetchRecurringInvoiceDetail = async (
   id: string,
-  businessId: string
+  businessId: string,
 ): Promise<RecurringInvoiceDetail> => {
   const res = await axiosInstance.get<RecurringInvoiceDetail>(
     `/api/invoices/recurring/${id}/detail`,
-    { params: { businessId } }
+    { params: { businessId } },
   );
   return res.data;
 };
