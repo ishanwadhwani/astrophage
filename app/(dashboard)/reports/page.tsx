@@ -10,15 +10,24 @@ import {
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
 import PermissionGate from "@/components/ui/PermissionGate";
-import { Sheet, ReceiptIndianRupee, FileBarChart, ChevronRight, BriefcaseBusiness } from "lucide-react";
+import {
+  Sheet,
+  ReceiptIndianRupee,
+  FileBarChart,
+  ChevronRight,
+  BriefcaseBusiness,
+  MessageSquareText 
+} from "lucide-react";
 import DateRangeFilter, { DateRange } from "@/components/ui/DateRangeFilter";
-import { HealthReport, fetchHealthReport } from "@/lib/reports";
+import { fetchHealthReport, fetchHsnSummary } from "@/lib/reports";
+import { HealthReport, HsnSummaryReport } from "@/types/reports";
 
 import GSTTab from "./_components/GSTTab";
 import VendorTab from "./_components/VendorTab";
 import HealthTab from "./_components/HealthTab";
+import HSNTab from "./_components/HSNTab";
 
-type ReportType = "gst" | "vendor" | "health";
+type ReportType = "gst" | "vendor" | "health" | "hsn";
 
 const getThisMonth = (): DateRange => {
   const now = new Date();
@@ -38,22 +47,44 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
   const [reportType, setReportType] = useState<ReportType>("health");
-  const [vendorReport, setVendorReport] = useState<VendorSpendingReport | null>(null);
+  const [vendorReport, setVendorReport] = useState<VendorSpendingReport | null>(
+    null,
+  );
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
+  const [hsnReport, setHsnReport] = useState<HsnSummaryReport | null>(null);
 
   const handleFetch = async () => {
     if (!businessId) return;
     setLoading(true);
     try {
       if (reportType === "gst") {
-        const data = await fetchGSTReport(businessId, dateRange.from, dateRange.to);
+        const data = await fetchGSTReport(
+          businessId,
+          dateRange.from,
+          dateRange.to,
+        );
         setReport(data);
       } else if (reportType === "vendor") {
-        const data = await fetchVendorSpending(businessId, dateRange.from, dateRange.to);
+        const data = await fetchVendorSpending(
+          businessId,
+          dateRange.from,
+          dateRange.to,
+        );
         setVendorReport(data);
       } else if (reportType === "health") {
-        const data = await fetchHealthReport(businessId, dateRange.from, dateRange.to);
+        const data = await fetchHealthReport(
+          businessId,
+          dateRange.from,
+          dateRange.to,
+        );
         setHealthReport(data);
+      } else if (reportType === "hsn") {
+        const data = await fetchHsnSummary(
+          businessId,
+          dateRange.from,
+          dateRange.to,
+        );
+        setHsnReport(data);
       }
       setFetched(true);
     } catch {
@@ -68,6 +99,7 @@ export default function ReportsPage() {
     setReport(null);
     setVendorReport(null);
     setHealthReport(null);
+    setHsnReport(null);
   };
 
   // Called by GSTTab when user marks an invoice as filed
@@ -91,7 +123,9 @@ export default function ReportsPage() {
       ? "GST invoice summary for filing and compliance"
       : reportType === "vendor"
         ? "Vendor spending analysis by period"
-        : "Business financial health overview";
+        : reportType === "hsn"
+          ? "HSN/SAC wise tax summary for GST filing"
+          : "Business financial health overview";
 
   return (
     <PermissionGate
@@ -109,7 +143,7 @@ export default function ReportsPage() {
     >
       <div className="space-y-6">
         {/* ── Header ───────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Reports</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
@@ -117,41 +151,29 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          {/* Tab switcher */}
-          <div className="flex items-center gap-1 bg-muted rounded-xl p-1 shrink-0">
-            <button
-              onClick={() => handleReportTypeChange("health")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-                reportType === "health"
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <BriefcaseBusiness className="w-4 h-4" />
-              Business Health
-            </button>
-            <button
-              onClick={() => handleReportTypeChange("gst")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-                reportType === "gst"
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Sheet className="w-4 h-4" />
-              Invoice Report
-            </button>
-            <button
-              onClick={() => handleReportTypeChange("vendor")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-                reportType === "vendor"
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <ReceiptIndianRupee className="w-4 h-4" />
-              Vendor Bills
-            </button>
+          {/* Tab switcher — full width, equal tabs, icon-only on mobile */}
+          <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+            {(
+              [
+                { type: "health", icon: BriefcaseBusiness, label: "Business Health" },
+                { type: "gst",    icon: Sheet,              label: "Invoice Report"  },
+                { type: "vendor", icon: ReceiptIndianRupee, label: "Vendor Bills"    },
+                { type: "hsn",    icon: MessageSquareText,  label: "HSN Summary"     },
+              ] as const
+            ).map(({ type, icon: Icon, label }) => (
+              <button
+                key={type}
+                onClick={() => handleReportTypeChange(type)}
+                className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                  reportType === type
+                    ? "bg-card text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -178,29 +200,35 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        {/* ── Loading ──────────────────────────────────────────────── */}
+        {/* Loading */}
         {loading && <LoadingState page="default" />}
 
-        {/* ── Business Health ──────────────────────────────────────── */}
+        {/* Business Health */}
         {!loading && fetched && reportType === "health" && healthReport && (
           <HealthTab report={healthReport} />
         )}
 
-        {/* ── GST Invoice Report ───────────────────────────────────── */}
+        {/* GST Invoice Report */}
         {!loading && fetched && reportType === "gst" && report && (
           <div className="space-y-6">
             <GSTTab report={report} onMarkFiled={handleMarkFiled} />
           </div>
         )}
 
-        {/* ── Vendor Spending Report ───────────────────────────────── */}
+        {/* Vendor Spending Report */}
         {!loading && fetched && reportType === "vendor" && vendorReport && (
           <div className="space-y-6">
             <VendorTab report={vendorReport} />
           </div>
         )}
 
-        {/* ── Pre-fetch empty state ────────────────────────────────── */}
+        {!loading && fetched && reportType === "hsn" && hsnReport && (
+          <div className="space-y-6">
+            <HSNTab report={hsnReport} />
+          </div>
+        )}
+
+        {/* Pre-fetch empty state */}
         {!loading && !fetched && (
           <div className="bg-card border border-border rounded-2xl flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
@@ -215,7 +243,9 @@ export default function ReportsPage() {
                   ? "Only invoices marked as GST invoices will appear here"
                   : reportType === "vendor"
                     ? "Shows spending grouped by vendor for the selected period"
-                    : "Shows profit, cashflow, and outstanding position for the period"}
+                    : reportType === "hsn"
+                      ? "Shows HSN/SAC code wise taxable value and GST breakup"
+                      : "Shows profit, cashflow, and outstanding position for the period"}
               </p>
             </div>
           </div>
