@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HealthReport } from "@/lib/reports";
+import { HealthReport } from "@/types/reports";
 import {
   TrendingUp,
   TrendingDown,

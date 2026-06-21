@@ -21,7 +21,15 @@ export type Permission =
   | "report:gst_file"
   | "settings:edit"
   | "team:manage"
-  | "business:delete";
+  | "business:delete"
+  | "employee:view"
+  | "employee:create"
+  | "employee:edit"
+  | "employee:delete"
+  | "expense:view"
+  | "expense:create"
+  | "expense:edit"
+  | "expense:delete";
 
 const ALL: Permission[] = [
   "invoice:create",
@@ -44,6 +52,14 @@ const ALL: Permission[] = [
   "settings:edit",
   "team:manage",
   "business:delete",
+  "expense:view",
+  "expense:create",
+  "expense:edit",
+  "expense:delete",
+  "employee:view",
+  "employee:create",
+  "employee:edit",
+  "employee:delete",
 ];
 
 export const ROLE_PERMISSIONS: Record<MemberRole, Permission[]> = {

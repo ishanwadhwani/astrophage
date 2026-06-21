@@ -115,7 +115,7 @@ export default function AddVendorModal({ isOpen, businessId, onClose, onCreated 
             <div className="flex gap-2">
               <select
                 {...register("countryCode")}
-                className={`${inputNormal} w-20 shrink-0 text-center px-1`}
+                className={`shrink-0 text-center px-1`}
               >
                 <option value="+91">+91</option>
               </select>

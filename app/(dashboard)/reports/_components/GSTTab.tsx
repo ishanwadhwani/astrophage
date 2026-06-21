@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import StatCard from "./StatCard";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 
 const fmt = (n: number) =>
   "₹" +
@@ -84,7 +84,7 @@ const exportCSV = (
   URL.revokeObjectURL(url);
 };
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// Sub-components
 
 function TaxTypeBadge({ taxType }: { taxType: string }) {
   return (
@@ -100,7 +100,7 @@ function TaxTypeBadge({ taxType }: { taxType: string }) {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// Component
 
 interface Props {
   report: GSTReport;
