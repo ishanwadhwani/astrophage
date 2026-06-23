@@ -10,11 +10,14 @@ const inputError = `${inputBase} border-destructive bg-destructive/5`;
 const labelBase =
   "block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
 
+const GST_RATES = [0, 5, 12, 18, 28];
+
 type BillForm = {
   vendorId: string;
-  number: string;
+  billNumber: string;
   description: string;
-  amount: number;
+  taxableAmount: number;
+  gstRate: number;
   dueDate: string;
   notes: string;
 };
@@ -39,17 +42,28 @@ export default function AddBillModal({
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<BillForm>({
     defaultValues: {
       vendorId: "",
-      number: "",
+      billNumber: "",
       description: "",
-      amount: 0,
+      taxableAmount: 0,
+      gstRate: 18,
       dueDate: "",
       notes: "",
     },
   });
+
+  const taxableAmount = watch("taxableAmount");
+  const gstRate = watch("gstRate");
+  const selectedVendor = vendors.find((v) => v.id === watch("vendorId"));
+  const gstAmount = ((Number(taxableAmount) || 0) * (Number(gstRate) || 0)) / 100;
+  const isReverseCharge = selectedVendor?.isForeign ?? false;
+  const total = isReverseCharge
+    ? Number(taxableAmount) || 0
+    : (Number(taxableAmount) || 0) + gstAmount;
 
   const onSubmit = async (values: BillForm) => {
     try {
@@ -57,9 +71,10 @@ export default function AddBillModal({
         businessId,
         vendorId: values.vendorId,
         description: values.description,
-        amount: values.amount,
+        taxableAmount: Number(values.taxableAmount),
+        gstRate: Number(values.gstRate),
         dueDate: values.dueDate,
-        number: values.number || undefined,
+        billNumber: values.billNumber || undefined,
         notes: values.notes || undefined,
       };
       const bill = await createBill(payload);
@@ -96,6 +111,7 @@ export default function AddBillModal({
                 {vendors.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
+                    {v.isForeign ? " (Foreign)" : ""}
                   </option>
                 ))}
               </select>
@@ -127,38 +143,86 @@ export default function AddBillModal({
           )}
         </div>
 
+        <div>
+          <label className={labelBase}>Bill Number</label>
+          <input
+            type="text"
+            placeholder="INV-001 (optional)"
+            {...register("billNumber")}
+            className={inputNormal}
+          />
+        </div>
+
+        {/* Taxable Amount + GST Rate */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelBase}>Bill Number</label>
-            <input
-              type="text"
-              placeholder="INV-001 (optional)"
-              {...register("number")}
-              className={inputNormal}
-            />
-          </div>
-          <div>
             <label className={labelBase}>
-              Amount (₹) <span className="text-destructive">*</span>
+              Taxable Amount (₹) <span className="text-destructive">*</span>
             </label>
             <input
               type="number"
-              min="1"
               step="0.01"
-              placeholder="0.00"
-              {...register("amount", {
-                required: "Amount is required",
-                min: { value: 1, message: "Min ₹1" },
-                valueAsNumber: true,
+              min={0}
+              placeholder="0"
+              {...register("taxableAmount", {
+                required: "Required",
+                validate: (v) => Number(v) > 0 || "Must be greater than 0",
               })}
-              className={errors.amount ? inputError : inputNormal}
+              className={errors.taxableAmount ? inputError : inputNormal}
             />
-            {errors.amount && (
+            {errors.taxableAmount && (
               <p className="text-xs text-destructive mt-1.5">
-                {errors.amount.message}
+                {errors.taxableAmount.message}
               </p>
             )}
           </div>
+          <div>
+            <label className={labelBase}>GST Rate</label>
+            <select {...register("gstRate")} className={inputNormal}>
+              {GST_RATES.map((r) => (
+                <option key={r} value={r}>
+                  {r}%
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Live tax preview */}
+        <div className="rounded-lg bg-muted/50 border border-border p-3 space-y-1.5 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Taxable</span>
+            <span className="tabular-nums">
+              ₹{(Number(taxableAmount) || 0).toLocaleString("en-IN")}
+            </span>
+          </div>
+          {isReverseCharge ? (
+            <div className="flex justify-between text-status-pending-foreground">
+              <span>IGST {gstRate}% (Reverse Charge — you pay govt)</span>
+              <span className="tabular-nums">
+                ₹{gstAmount.toLocaleString("en-IN")}
+              </span>
+            </div>
+          ) : (
+            <div className="flex justify-between text-muted-foreground">
+              <span>GST {gstRate}%</span>
+              <span className="tabular-nums">
+                ₹{gstAmount.toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between font-semibold text-foreground pt-1.5 border-t border-border">
+            <span>{isReverseCharge ? "Payable to vendor" : "Total"}</span>
+            <span className="tabular-nums">
+              ₹{total.toLocaleString("en-IN")}
+            </span>
+          </div>
+          {isReverseCharge && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Foreign vendor — IGST is self-assessed under reverse charge.
+              Confirm treatment with your CA.
+            </p>
+          )}
         </div>
 
         <div>

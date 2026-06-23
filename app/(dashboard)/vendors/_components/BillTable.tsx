@@ -1,4 +1,4 @@
-import { Receipt, Trash2, CreditCard } from "lucide-react";
+import { Receipt, Trash2, CreditCard, ChevronLeft, ChevronRight } from "lucide-react";
 import { Bill, BillStatus } from "@/types/vendor";
 import PermissionGate from "@/components/ui/PermissionGate";
 
@@ -107,9 +107,25 @@ interface Props {
   bills: Bill[];
   onPay: (bill: Bill) => void;
   onDelete: (id: string) => void;
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (p: number) => void;
 }
 
-export default function BillTable({ bills, onPay, onDelete }: Props) {
+export default function BillTable({
+  bills,
+  onPay,
+  onDelete,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+}: Props) {
+  const totalPages = Math.ceil(total / pageSize);
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
   if (bills.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -160,6 +176,7 @@ export default function BillTable({ bills, onPay, onDelete }: Props) {
               bill.amount > 0
                 ? Math.min(100, (paid / bill.amount) * 100)
                 : 0;
+            const gstTotal = bill.igst + bill.cgst + bill.sgst;
 
             return (
               <tr
@@ -180,7 +197,7 @@ export default function BillTable({ bills, onPay, onDelete }: Props) {
 
                 {/* Vendor */}
                 <td className="px-4 py-3 text-muted-foreground">
-                  {bill.vendor.name}
+                  {bill.vendor?.name ?? "Unknown vendor"}
                 </td>
 
                 {/* Due Date */}
@@ -188,11 +205,25 @@ export default function BillTable({ bills, onPay, onDelete }: Props) {
                   <DueDateCell dateStr={bill.dueDate} status={bill.status} />
                 </td>
 
-                {/* Amount + progress bar */}
+                {/* Amount + GST + progress bar */}
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-foreground tabular-nums">
+                  <p className="font-semibold text-foreground tabular-nums whitespace-nowrap">
                     {fmt(bill.amount)}
                   </p>
+                  {gstTotal > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5 tabular-nums whitespace-nowrap">
+                      <span className="hidden sm:inline">
+                        {bill.isReverseCharge
+                          ? `IGST ${fmt(gstTotal)} (RCM)`
+                          : `incl. GST ${fmt(gstTotal)}`}
+                      </span>
+                      <span className="sm:hidden">
+                        {bill.isReverseCharge
+                          ? `IGST ${fmt(gstTotal)}`
+                          : `+GST ${fmt(gstTotal)}`}
+                      </span>
+                    </p>
+                  )}
                   {paid > 0 && outstanding > 0 && (
                     <div className="mt-1.5 w-16 h-1 bg-muted rounded-full overflow-hidden">
                       <div
@@ -250,6 +281,65 @@ export default function BillTable({ bills, onPay, onDelete }: Props) {
           })}
         </tbody>
       </table>
+
+      {/* Pagination footer */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20">
+          <p className="text-xs text-muted-foreground tabular-nums">
+            Showing{" "}
+            <span className="font-semibold text-foreground">
+              {from}–{to}
+            </span>{" "}
+            of <span className="font-semibold text-foreground">{total}</span>{" "}
+            bills
+          </p>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page === 1}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | "…")[]>((acc, p, i, arr) => {
+                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === "…" ? (
+                  <span key={`ellipsis-${i}`} className="px-1.5 text-xs text-muted-foreground">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => onPageChange(p as number)}
+                    className={`min-w-7 h-7 px-2 rounded-lg text-xs font-medium transition-all ${
+                      page === p
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page === totalPages}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
