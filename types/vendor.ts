@@ -1,6 +1,7 @@
 export type BillStatus = "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CARD";
 export type BillFrequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
+export type BillTaxType = "IGST" | "CGST_SGST";
 
 export interface Vendor {
   id: string;
@@ -15,6 +16,7 @@ export interface Vendor {
   pincode: string | null;
   notes: string | null;
   businessId: string;
+  isForeign: boolean;
   _count: { bills: number };
 }
 
@@ -24,6 +26,13 @@ export interface Bill {
   vendorId: string;
   number: string | null;
   description: string;
+  taxableAmount: number;
+  gstRate: number;
+  taxType: BillTaxType;
+  igst: number;
+  cgst: number;
+  sgst: number;
+  isReverseCharge: boolean;
   amount: number;
   dueDate: string;
   status: BillStatus;
@@ -66,14 +75,16 @@ export interface CreateVendorPayload {
   pincode?: string;
   notes?: string;
   businessId: string;
+  isForeign?: boolean;
 }
 
 export interface CreateBillPayload {
   businessId: string;
   vendorId: string;
-  number?: string;
+  billNumber?: string;
   description: string;
-  amount: number;
+  taxableAmount: number;
+  gstRate: number;
   dueDate: string;
   notes?: string;
 }
@@ -98,13 +109,15 @@ export interface VendorForm {
   state: string;
   pincode: string;
   notes: string;
+  isForeign: boolean;
 }
 
 export interface BillForm {
   vendorId: string;
-  number: string;
+  billNumber: string;
   description: string;
-  amount: number;
+  taxableAmount: number;
+  gstRate: number;
   dueDate: string;
   notes: string;
 }

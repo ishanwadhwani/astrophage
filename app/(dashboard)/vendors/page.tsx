@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Download, Building2, FilePlus, RefreshCw } from "lucide-react";
+import { Download, Building2, FilePlus, RefreshCw, ArrowUpDown } from "lucide-react";
 
 import { Vendor, Bill, RecurringBill } from "@/types/vendor";
 import {
@@ -30,8 +30,10 @@ import { exportToCSV, fmtCSVDate, fmtCSVAmount } from "@/lib/csv";
 import PermissionGate from "@/components/ui/PermissionGate";
 
 type TabType = "Vendors" | "Bills" | "Recurring";
+type SortOrder = "newest" | "oldest";
 
 const q = (s: string) => s.toLowerCase();
+const BILL_PAGE_SIZE = 10;
 
 export default function VendorsPage() {
   const user = getUser();
@@ -46,6 +48,8 @@ export default function VendorsPage() {
   const [loading,           setLoading]           = useState(true);
   const [search,            setSearch]            = useState("");
   const [billDateRange,     setBillDateRange]     = useState<DateRange>({ from: "", to: "" });
+  const [billSort,          setBillSort]          = useState<SortOrder>("newest");
+  const [billPage,          setBillPage]          = useState(1);
 
   const [vendorModalOpen,   setVendorModalOpen]   = useState(false);
   const [billModalOpen,     setBillModalOpen]     = useState(false);
@@ -75,6 +79,22 @@ export default function VendorsPage() {
   const handleTabChange = (t: TabType) => {
     setTab(t);
     setSearch("");
+    setBillPage(1);
+  };
+
+  const handleSearchChange = (v: string) => {
+    setSearch(v);
+    setBillPage(1);
+  };
+
+  const handleBillDateRange = (v: DateRange) => {
+    setBillDateRange(v);
+    setBillPage(1);
+  };
+
+  const handleBillSortChange = () => {
+    setBillSort((s) => (s === "newest" ? "oldest" : "newest"));
+    setBillPage(1);
   };
 
   // ── Per-tab filtering ────────────────────────────────────────────────────────
@@ -92,17 +112,27 @@ export default function VendorsPage() {
 
   const filteredBills = useMemo(() => {
     const term = q(search);
-    return bills.filter((bill) => {
+    const matched = bills.filter((bill) => {
       const due = new Date(bill.dueDate);
       const matchesFrom = !billDateRange.from || due >= new Date(billDateRange.from);
       const matchesTo   = !billDateRange.to   || due <= new Date(billDateRange.to + "T23:59:59");
       const matchesSearch = !term ||
         q(bill.description).includes(term) ||
-        q(bill.vendor.name).includes(term) ||
+        q(bill.vendor?.name ?? "").includes(term) ||
         q(bill.number ?? "").includes(term);
       return matchesFrom && matchesTo && matchesSearch;
     });
-  }, [bills, billDateRange, search]);
+    const sorted = [...matched].sort((a, b) => {
+      const diff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      return billSort === "oldest" ? diff : -diff;
+    });
+    return sorted;
+  }, [bills, billDateRange, search, billSort]);
+
+  const paginatedBills = useMemo(() => {
+    const start = (billPage - 1) * BILL_PAGE_SIZE;
+    return filteredBills.slice(start, start + BILL_PAGE_SIZE);
+  }, [filteredBills, billPage]);
 
   const filteredRecurring = useMemo(() => {
     const term = q(search);
@@ -192,7 +222,7 @@ export default function VendorsPage() {
         ["Description", "Vendor", "Bill No", "Amount", "Due Date", "Paid", "Outstanding", "Status"],
         bills.map((b) => {
           const paid = (b.payments ?? []).reduce((s, p) => s + p.amount, 0);
-          return [b.description, b.vendor.name, b.number ?? "", fmtCSVAmount(b.amount), fmtCSVDate(b.dueDate), fmtCSVAmount(paid), fmtCSVAmount(b.amount - paid), b.status];
+          return [b.description, b.vendor?.name ?? "Unknown vendor", b.number ?? "", fmtCSVAmount(b.amount), fmtCSVDate(b.dueDate), fmtCSVAmount(paid), fmtCSVAmount(b.amount - paid), b.status];
         })
       );
       return;
@@ -257,7 +287,7 @@ export default function VendorsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <SearchBar
           value={search}
-          onChange={setSearch}
+          onChange={handleSearchChange}
           placeholder={searchPlaceholders[tab]}
           className="flex-1"
         />
@@ -282,10 +312,20 @@ export default function VendorsPage() {
         {/* Bills date filter bar */}
         {tab === "Bills" && (
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
-            <DateRangeFilter
-              value={billDateRange}
-              onChange={setBillDateRange}
-            />
+            <div className="flex items-center gap-2">
+              <DateRangeFilter
+                value={billDateRange}
+                onChange={handleBillDateRange}
+              />
+              <button
+                onClick={handleBillSortChange}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
+                title={billSort === "newest" ? "Sorted: Newest first" : "Sorted: Oldest first"}
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                {billSort === "newest" ? "Newest" : "Oldest"}
+              </button>
+            </div>
             {(billDateRange.from || billDateRange.to || search) && (
               <span className="text-xs text-muted-foreground shrink-0">
                 {filteredBills.length} of {bills.length} bill{bills.length !== 1 ? "s" : ""}
@@ -304,7 +344,17 @@ export default function VendorsPage() {
         )}
 
         {tab === "Vendors"   && <VendorTable vendors={filteredVendors} onDelete={handleDeleteVendor} />}
-        {tab === "Bills"     && <BillTable bills={filteredBills} onPay={setPaymentBill} onDelete={handleDeleteBill} />}
+        {tab === "Bills"     && (
+          <BillTable
+            bills={paginatedBills}
+            onPay={setPaymentBill}
+            onDelete={handleDeleteBill}
+            page={billPage}
+            pageSize={BILL_PAGE_SIZE}
+            total={filteredBills.length}
+            onPageChange={setBillPage}
+          />
+        )}
         {tab === "Recurring" && <RecurringBillTable items={filteredRecurring} onToggle={handleToggleRecurring} onDelete={handleDeleteRecurring} />}
       </div>
 

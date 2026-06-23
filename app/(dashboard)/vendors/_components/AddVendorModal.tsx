@@ -29,6 +29,7 @@ type VendorForm = {
   state: string;
   pincode: string;
   notes: string;
+  isForeign: boolean;
 };
 
 interface Props {
@@ -49,6 +50,7 @@ export default function AddVendorModal({ isOpen, businessId, onClose, onCreated 
     defaultValues: {
       name: "", email: "", phone: "", countryCode: "+91",
       gstin: "", pan: "", address: "", city: "", state: "", pincode: "", notes: "",
+      isForeign: false,
     },
   });
 
@@ -66,6 +68,7 @@ export default function AddVendorModal({ isOpen, businessId, onClose, onCreated 
         state:   values.state   || undefined,
         pincode: values.pincode || undefined,
         notes:   values.notes   || undefined,
+        isForeign: values.isForeign,
       };
       const vendor = await createVendor(payload);
       onCreated({ ...vendor, _count: { bills: 0 } });
@@ -235,6 +238,18 @@ export default function AddVendorModal({ isOpen, businessId, onClose, onCreated 
             )}
           />
         </div>
+
+        {/* Foreign vendor toggle */}
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            {...register("isForeign")}
+            className="w-4 h-4 rounded border-input accent-primary"
+          />
+          <span className="text-sm text-foreground">
+            This vendor is outside India (import / reverse charge)
+          </span>
+        </label>
 
         {/* Notes */}
         <div>
