@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { VendorSpendingReport, VendorSpendingRow } from "@/lib/reports";
+import { VendorSpendingReport } from "@/lib/reports";
+import { VendorSpendingRow } from "@/types/reports";
 import DataTable, { TableColumn } from "@/components/shared/DataTable";
 import { EmptyCell } from "@/components/ui/EmptyCell";
 import PermissionGate from "@/components/ui/PermissionGate";
