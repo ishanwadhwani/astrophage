@@ -248,7 +248,7 @@ export default function CreateInvoicePage() {
         mounted ? "opacity-100" : "opacity-0"
       }`}
     >
-      {/* ── Page header ──────────────────────────────────────────────── */}
+      {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Link
@@ -337,7 +337,7 @@ export default function CreateInvoicePage() {
         className="flex flex-col lg:flex-row gap-6 items-start"
       >
         <div className="flex-1 min-w-0 space-y-4">
-          {/* ── Section 1: Invoice Details ──────────────────────────── */}
+          {/* Section 1: Invoice Details */}
           <SectionCard
             step="01"
             title="Invoice Details"
@@ -456,15 +456,14 @@ export default function CreateInvoicePage() {
                 {watchedIsGst && selectedClient && !selectedClient.gstin && (
                   <p className="flex items-center gap-1.5 text-xs text-status-pending-foreground mt-1">
                     <AlertTriangle className="w-3 h-3 shrink-0" />
-                    This client has no GSTIN. Invoice will be created but may
-                    not be valid for GST filing.
+                    No client GSTIN — this will be treated as a B2C (consumer) sale.
                   </p>
                 )}
               </div>
             </label>
           </SectionCard>
 
-          {/* ── Section 2: Line Items ────────────────────────────────── */}
+          {/* Section 2: Line Items */}
           <SectionCard
             step="02"
             title="Line Items"
@@ -701,7 +700,7 @@ export default function CreateInvoicePage() {
             </div>
           </SectionCard>
 
-          {/* ── Section 3: Notes ─────────────────────────────────────── */}
+          {/* Section 3: Notes */}
           <SectionCard
             step="03"
             title="Notes"
@@ -754,7 +753,7 @@ export default function CreateInvoicePage() {
           </div>
         </div>
 
-        {/* ── Sidebar ───────────────────────────────────────────────── */}
+        {/* Sidebar */}
         <div className="flex flex-col w-full lg:w-80 lg:sticky lg:top-6 shrink-0 gap-4">
           {/* Summary card */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">

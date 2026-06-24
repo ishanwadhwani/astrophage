@@ -5,7 +5,9 @@ import { GSTReport } from "@/types/gst";
 import {
   fetchGSTReport,
   fetchVendorSpending,
+  fetchGstSummary,
   VendorSpendingReport,
+  GstSummary,
 } from "@/lib/reports";
 import { getUser } from "@/lib/auth";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -16,7 +18,8 @@ import {
   FileBarChart,
   ChevronRight,
   BriefcaseBusiness,
-  MessageSquareText 
+  MessageSquareText,
+  Landmark,
 } from "lucide-react";
 import DateRangeFilter, { DateRange } from "@/components/ui/DateRangeFilter";
 import { fetchHealthReport, fetchHsnSummary } from "@/lib/reports";
@@ -26,8 +29,9 @@ import GSTTab from "./_components/GSTTab";
 import VendorTab from "./_components/VendorTab";
 import HealthTab from "./_components/HealthTab";
 import HSNTab from "./_components/HSNTab";
+import GSTSummaryTab from "./_components/GSTSummaryTab";
 
-type ReportType = "gst" | "vendor" | "health" | "hsn";
+type ReportType = "gst" | "vendor" | "health" | "hsn" | "gst-summary";
 
 const getThisMonth = (): DateRange => {
   const now = new Date();
@@ -52,6 +56,7 @@ export default function ReportsPage() {
   );
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
   const [hsnReport, setHsnReport] = useState<HsnSummaryReport | null>(null);
+  const [gstSummary, setGstSummary] = useState<GstSummary | null>(null);
 
   const handleFetch = async () => {
     if (!businessId) return;
@@ -85,6 +90,13 @@ export default function ReportsPage() {
           dateRange.to,
         );
         setHsnReport(data);
+      } else if (reportType === "gst-summary") {
+        const data = await fetchGstSummary(
+          businessId,
+          dateRange.from,
+          dateRange.to,
+        );
+        setGstSummary(data);
       }
       setFetched(true);
     } catch {
@@ -100,6 +112,7 @@ export default function ReportsPage() {
     setVendorReport(null);
     setHealthReport(null);
     setHsnReport(null);
+    setGstSummary(null);
   };
 
   // Called by GSTTab when user marks an invoice as filed
@@ -125,7 +138,9 @@ export default function ReportsPage() {
         ? "Vendor spending analysis by period"
         : reportType === "hsn"
           ? "HSN/SAC wise tax summary for GST filing"
-          : "Business financial health overview";
+          : reportType === "gst-summary"
+            ? "Net GST payable or refundable for the period"
+            : "Business financial health overview";
 
   return (
     <PermissionGate
@@ -151,27 +166,28 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          {/* Tab switcher — full width, equal tabs, icon-only on mobile */}
-          <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+          {/* Tab switcher — scrolls on narrow screens, fills evenly from lg up */}
+          <div className="flex items-center gap-1 bg-muted rounded-xl p-1 overflow-x-auto hide-scrollbar">
             {(
               [
-                { type: "health", icon: BriefcaseBusiness, label: "Business Health" },
-                { type: "gst",    icon: Sheet,              label: "Invoice Report"  },
-                { type: "vendor", icon: ReceiptIndianRupee, label: "Vendor Bills"    },
-                { type: "hsn",    icon: MessageSquareText,  label: "HSN Summary"     },
+                { type: "health",      icon: BriefcaseBusiness, label: "Business Health" },
+                { type: "gst",         icon: Sheet,              label: "Invoice Report"  },
+                { type: "vendor",      icon: ReceiptIndianRupee, label: "Vendor Bills"    },
+                { type: "hsn",         icon: MessageSquareText,  label: "HSN Summary"     },
+                { type: "gst-summary", icon: Landmark,           label: "GST Summary"     },
               ] as const
             ).map(({ type, icon: Icon, label }) => (
               <button
                 key={type}
                 onClick={() => handleReportTypeChange(type)}
-                className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 lg:flex-1 transition-all duration-150 ${
                   reportType === type
                     ? "bg-card text-primary shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">{label}</span>
+                {label}
               </button>
             ))}
           </div>
@@ -228,6 +244,11 @@ export default function ReportsPage() {
           </div>
         )}
 
+        {/* GST Summary (payable/credit) */}
+        {!loading && fetched && reportType === "gst-summary" && gstSummary && (
+          <GSTSummaryTab report={gstSummary} />
+        )}
+
         {/* Pre-fetch empty state */}
         {!loading && !fetched && (
           <div className="bg-card border border-border rounded-2xl flex flex-col items-center justify-center py-20 gap-4">
@@ -245,7 +266,9 @@ export default function ReportsPage() {
                     ? "Shows spending grouped by vendor for the selected period"
                     : reportType === "hsn"
                       ? "Shows HSN/SAC code wise taxable value and GST breakup"
-                      : "Shows profit, cashflow, and outstanding position for the period"}
+                      : reportType === "gst-summary"
+                        ? "Shows output GST vs input credit, and what you owe or can claim"
+                        : "Shows profit, cashflow, and outstanding position for the period"}
               </p>
             </div>
           </div>
