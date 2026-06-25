@@ -1,3 +1,6 @@
+import { HelpCircle } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
+
 interface StatCardProps {
   label: string;
   value: string;
@@ -6,6 +9,7 @@ interface StatCardProps {
   iconColor: string;
   delay: number;
   mounted: boolean;
+  tip?: string;
 }
 
 export default function StatCard({
@@ -16,6 +20,7 @@ export default function StatCard({
   iconColor,
   delay,
   mounted,
+  tip,
 }: StatCardProps) {
   return (
     <div
@@ -25,9 +30,16 @@ export default function StatCard({
       style={{ transitionDelay: mounted ? `${delay}ms` : "0ms" }}
     >
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          {tip && (
+            <Tooltip content={tip} side="top">
+              <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+            </Tooltip>
+          )}
+        </div>
         <div
           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}
         >

@@ -5,6 +5,9 @@ export interface DashboardStats {
   overduePayables: number;
   paidThisMonth: number;
   totalClients: number;
+  gstPayable: number;
+  outputGst: number;
+  inputGst: number;
 }
 
 export interface DashboardInvoice {

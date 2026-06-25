@@ -3,7 +3,6 @@ import { GSTReport } from "@/types/gst";
 import {
   VendorSpendingRow,
   HealthReport,
-  HsnRow,
   HsnSummaryReport,
 } from "@/types/reports";
 
@@ -23,6 +22,26 @@ export interface VendorSpendingReport {
   period: { from: string; to: string };
   summary: { totalSpent: number; totalPaid: number; totalOutstanding: number };
   vendors: VendorSpendingRow[];
+}
+
+export interface GstSummary {
+  period: { from: string; to: string };
+  output: {
+    taxable: number;
+    igst: number;
+    cgst: number;
+    sgst: number;
+    total: number;
+  };
+  input: {
+    taxable: number;
+    igst: number;
+    cgst: number;
+    sgst: number;
+    total: number;
+  };
+  reverseChargeGst: number;
+  netPayable: number;
 }
 
 export const fetchVendorSpending = async (
@@ -57,6 +76,20 @@ export const fetchHsnSummary = async (
   const res = await axiosInstance.get<HsnSummaryReport>(
     `/api/businesses/${businessId}/hsn-summary`,
     { params: { from, to } },
+  );
+  return res.data;
+};
+
+export const fetchGstSummary = async (
+  businessId: string,
+  from: string,
+  to: string,
+): Promise<GstSummary> => {
+  const res = await axiosInstance.get<GstSummary>(
+    `/api/businesses/${businessId}/gst-summary`,
+    {
+      params: { from, to },
+    },
   );
   return res.data;
 };

@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import {
   TrendingUp,
   TrendingDown,
-  ArrowLeftRight,
+  Landmark,
   AlertCircle,
   Clock,
   BadgeCheck,
@@ -15,6 +15,7 @@ import {
   FileText,
   Receipt,
   ArrowRight,
+  HelpCircle,
 } from "lucide-react";
 
 import {
@@ -31,33 +32,74 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { fetchBusiness } from "@/lib/business";
 import PermissionGate from "@/components/ui/PermissionGate";
+import { Tooltip } from "@/components/ui/Tooltip";
 
-// Helpers 
+// Helpers
 
 const fmt = (n: number) =>
-  "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  "₹" +
+  n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const fmtCompact = (n: number) =>
-  n >= 10_000_000 ? `₹${(n / 10_000_000).toFixed(1)}Cr`
-  : n >= 100_000  ? `₹${(n / 100_000).toFixed(1)}L`
-  : n >= 1_000    ? `₹${(n / 1_000).toFixed(0)}K`
-  : `₹${n}`;
+  n >= 10_000_000
+    ? `₹${(n / 10_000_000).toFixed(1)}Cr`
+    : n >= 100_000
+      ? `₹${(n / 100_000).toFixed(1)}L`
+      : n >= 1_000
+        ? `₹${(n / 1_000).toFixed(0)}K`
+        : `₹${n}`;
 
 const STATUS_CFG = {
-  DRAFT:     { dot: "bg-status-draft-foreground/40",  bg: "bg-status-draft",     text: "text-status-draft-foreground",     border: "border-status-draft-foreground/15",  label: "Draft"     },
-  PENDING:   { dot: "bg-status-pending-foreground",   bg: "bg-status-pending",   text: "text-status-pending-foreground",   border: "border-status-pending-foreground/20",label: "Pending"   },
-  PAID:      { dot: "bg-status-paid-foreground",      bg: "bg-status-paid",      text: "text-status-paid-foreground",      border: "border-status-paid-foreground/20",   label: "Paid"      },
-  OVERDUE:   { dot: "bg-status-overdue-foreground",   bg: "bg-status-overdue",   text: "text-status-overdue-foreground",   border: "border-status-overdue-foreground/20",label: "Overdue"   },
-  CANCELLED: { dot: "bg-status-cancelled-foreground/40",bg:"bg-status-cancelled",text: "text-status-cancelled-foreground", border: "border-status-cancelled-foreground/15",label:"Cancelled" },
+  DRAFT: {
+    dot: "bg-status-draft-foreground/40",
+    bg: "bg-status-draft",
+    text: "text-status-draft-foreground",
+    border: "border-status-draft-foreground/15",
+    label: "Draft",
+  },
+  PENDING: {
+    dot: "bg-status-pending-foreground",
+    bg: "bg-status-pending",
+    text: "text-status-pending-foreground",
+    border: "border-status-pending-foreground/20",
+    label: "Pending",
+  },
+  PAID: {
+    dot: "bg-status-paid-foreground",
+    bg: "bg-status-paid",
+    text: "text-status-paid-foreground",
+    border: "border-status-paid-foreground/20",
+    label: "Paid",
+  },
+  OVERDUE: {
+    dot: "bg-status-overdue-foreground",
+    bg: "bg-status-overdue",
+    text: "text-status-overdue-foreground",
+    border: "border-status-overdue-foreground/20",
+    label: "Overdue",
+  },
+  CANCELLED: {
+    dot: "bg-status-cancelled-foreground/40",
+    bg: "bg-status-cancelled",
+    text: "text-status-cancelled-foreground",
+    border: "border-status-cancelled-foreground/15",
+    label: "Cancelled",
+  },
 };
 
 // Sub-components
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CFG[status as keyof typeof STATUS_CFG];
-  if (!cfg) return <span className="text-xs text-muted-foreground">{status}</span>;
+  if (!cfg)
+    return <span className="text-xs text-muted-foreground">{status}</span>;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
@@ -68,6 +110,7 @@ function StatCard({
   label,
   rawValue,
   sub,
+  tip,
   icon: Icon,
   iconBg,
   iconColor,
@@ -77,6 +120,7 @@ function StatCard({
   label: string;
   rawValue: number;
   sub?: string;
+  tip?: string;
   icon: React.ElementType;
   iconBg: string;
   iconColor: string;
@@ -91,10 +135,19 @@ function StatCard({
       style={{ transitionDelay: mounted ? `${delay}ms` : "0ms" }}
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          {tip && (
+            <Tooltip content={tip} side="top">
+              <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+            </Tooltip>
+          )}
+        </div>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}
+        >
           <Icon className={`w-4 h-4 ${iconColor}`} />
         </div>
       </div>
@@ -102,7 +155,11 @@ function StatCard({
         <p className="text-2xl font-bold text-foreground tabular-nums">
           <AnimatedNumber value={rawValue} prefix="₹" decimals={2} />
         </p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{sub}</p>}
+        {sub && (
+          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -122,11 +179,15 @@ function AlertBanner({
   const isWarning = variant === "warning";
   const Icon = isWarning ? Clock : AlertCircle;
   const accentBg = isWarning ? "bg-chart-4" : "bg-status-overdue-foreground";
-  const iconClass = isWarning ? "text-chart-4" : "text-status-overdue-foreground";
+  const iconClass = isWarning
+    ? "text-chart-4"
+    : "text-status-overdue-foreground";
 
   return (
     <div className="relative flex items-start gap-4 overflow-hidden rounded-2xl border border-border bg-card px-5 py-4">
-      <div className={`absolute inset-y-0 left-0 w-0.75 rounded-l-2xl ${accentBg} opacity-70`} />
+      <div
+        className={`absolute inset-y-0 left-0 w-0.75 rounded-l-2xl ${accentBg} opacity-70`}
+      />
       <Icon className={`mt-0.5 w-4 h-4 shrink-0 ${iconClass}`} />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{message}</p>
@@ -163,7 +224,9 @@ function SectionCard({
     <div
       className={`bg-card border border-border rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-md hover:shadow-black/5 ${
         mounted !== undefined
-          ? mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+          ? mounted
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-3"
           : ""
       }`}
       style={{ transitionDelay: mounted && delay ? `${delay}ms` : "0ms" }}
@@ -209,20 +272,27 @@ function InvoiceTable({
 }) {
   if (invoices.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">{emptyText}</p>
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {emptyText}
+      </p>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-border">
-            {["Invoice", "Client", "Due", "Outstanding", "Status", ""].map((h) => (
-              <th key={h} className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {h}
-              </th>
-            ))}
+            {["Invoice", "Client", "Due", "Outstanding", "Status", ""].map(
+              (h) => (
+                <th
+                  key={h}
+                  className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:pr-0"
+                >
+                  {h}
+                </th>
+              ),
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
@@ -232,34 +302,45 @@ function InvoiceTable({
               className="group transition-colors hover:bg-muted/30"
               style={{ animationDelay: `${i * 40}ms` }}
             >
-              <td className="py-3">
-                <Link href={`/invoices/${inv.id}`} className="font-medium text-foreground transition-colors hover:text-primary">
+              <td className="py-3 pr-4">
+                <Link
+                  href={`/invoices/${inv.id}`}
+                  className="font-medium text-foreground transition-colors hover:text-primary"
+                >
                   #{inv.number}
                 </Link>
               </td>
-              <td className="py-3 text-muted-foreground">{inv.clientName}</td>
-              <td className="py-3 whitespace-nowrap text-muted-foreground tabular-nums">
-                {new Date(inv.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+              <td className="py-3 pr-4 text-muted-foreground">{inv.clientName}</td>
+              <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground tabular-nums">
+                {new Date(inv.dueDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
               </td>
-              <td className="py-3 font-semibold text-foreground tabular-nums">
+              <td className="py-3 pr-4 font-semibold text-foreground tabular-nums">
                 {fmt(inv.outstanding)}
               </td>
-              <td className="py-3">
+              <td className="py-3 pr-4">
                 <StatusBadge status={inv.status} />
               </td>
               <PermissionGate permission="invoice:edit">
-              <td className="py-3 text-right">
-                {showWhatsApp && inv.clientPhone && businessName && (
-                  <button
-                    onClick={() => openWhatsApp(inv.clientPhone!, invoiceReminderMessage(inv, businessName))}
-                    className="flex items-center gap-1.5 text-xs font-semibold opacity-0 transition-all group-hover:opacity-100"
-                    style={{ color: "#25D366" }}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Remind
-                  </button>
-                )}
-              </td>
+                <td className="py-3 text-right">
+                  {showWhatsApp && inv.clientPhone && businessName && (
+                    <button
+                      onClick={() =>
+                        openWhatsApp(
+                          inv.clientPhone!,
+                          invoiceReminderMessage(inv, businessName),
+                        )
+                      }
+                      className="flex items-center gap-1.5 text-xs font-semibold opacity-0 transition-all group-hover:opacity-100"
+                      style={{ color: "#25D366" }}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Remind
+                    </button>
+                  )}
+                </td>
               </PermissionGate>
             </tr>
           ))}
@@ -269,23 +350,36 @@ function InvoiceTable({
   );
 }
 
-function BillTable({ bills, emptyText }: { bills: DashboardBill[]; emptyText: string }) {
+function BillTable({
+  bills,
+  emptyText,
+}: {
+  bills: DashboardBill[];
+  emptyText: string;
+}) {
   if (bills.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-muted-foreground">{emptyText}</p>
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        {emptyText}
+      </p>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[560px] text-sm">
         <thead>
           <tr className="border-b border-border">
-            {["Description", "Vendor", "Due", "Outstanding", "Status"].map((h) => (
-              <th key={h} className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {h}
-              </th>
-            ))}
+            {["Description", "Vendor", "Due", "Outstanding", "Status"].map(
+              (h) => (
+                <th
+                  key={h}
+                  className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:pr-0"
+                >
+                  {h}
+                </th>
+              ),
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
@@ -295,12 +389,17 @@ function BillTable({ bills, emptyText }: { bills: DashboardBill[]; emptyText: st
               className="transition-colors hover:bg-muted/30"
               style={{ animationDelay: `${i * 40}ms` }}
             >
-              <td className="py-3 font-medium text-foreground">{bill.description}</td>
-              <td className="py-3 text-muted-foreground">{bill.vendorName}</td>
-              <td className="py-3 whitespace-nowrap text-muted-foreground tabular-nums">
-                {new Date(bill.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+              <td className="py-3 pr-4 font-medium text-foreground">
+                {bill.description}
               </td>
-              <td className="py-3 font-semibold text-foreground tabular-nums">
+              <td className="py-3 pr-4 text-muted-foreground">{bill.vendorName}</td>
+              <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground tabular-nums">
+                {new Date(bill.dueDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </td>
+              <td className="py-3 pr-4 font-semibold text-foreground tabular-nums">
                 {fmt(bill.outstanding)}
               </td>
               <td className="py-3">
@@ -332,17 +431,17 @@ const StatusChart = dynamic(() => import("./_components/StatusChart"), {
   loading: () => <ChartSpinner />,
 });
 
-// Page 
+// Page
 
 export default function DashboardPage() {
   const user = getUser();
   const { businessId } = useBusiness();
 
-  const [data, setData]                   = useState<DashboardData | null>(null);
-  const [charts, setCharts]               = useState<DashboardCharts | null>(null);
-  const [loading, setLoading]             = useState(true);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [charts, setCharts] = useState<DashboardCharts | null>(null);
+  const [loading, setLoading] = useState(true);
   const [setupIncomplete, setSetupIncomplete] = useState(false);
-  const [mounted, setMounted]             = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (!businessId) return;
@@ -379,30 +478,41 @@ export default function DashboardPage() {
   const chartSummary = useMemo(() => {
     if (!charts) return null;
     return {
-      invoiced:  charts.monthlyTrend.reduce((s, m) => s + m.invoiced, 0),
+      invoiced: charts.monthlyTrend.reduce((s, m) => s + m.invoiced, 0),
       collected: charts.monthlyTrend.reduce((s, m) => s + m.collected, 0),
-      spent:     charts.monthlyTrend.reduce((s, m) => s + m.spent, 0),
+      spent: charts.monthlyTrend.reduce((s, m) => s + m.spent, 0),
     };
   }, [charts]);
 
   if (loading) return <LoadingState page="dashboard" />;
   if (!data) return null;
 
-  const { stats, overdueInvoices, dueSoonInvoices, overdueB, dueSoonBills, recentInvoices } = data;
-  const net = stats.totalReceivables - stats.totalPayables;
+  const {
+    stats,
+    overdueInvoices,
+    dueSoonInvoices,
+    overdueB,
+    dueSoonBills,
+    recentInvoices,
+  } = data;
 
   const hour = new Date().getHours();
   const greeting =
-    hour >= 5 && hour < 12 ? "Good morning"
-    : hour >= 12 && hour < 17 ? "Good afternoon"
-    : hour >= 17 && hour < 22 ? "Good evening"
-    : "Welcome back";
+    hour >= 5 && hour < 12
+      ? "Good morning"
+      : hour >= 12 && hour < 17
+        ? "Good afternoon"
+        : hour >= 17 && hour < 22
+          ? "Good evening"
+          : "Welcome back";
 
   const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long", day: "numeric", month: "long",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
   });
 
-  // Stat cards config 
+  // Stat cards config
 
   const statCards = [
     {
@@ -412,6 +522,7 @@ export default function DashboardPage() {
       iconBg: "bg-chart-1/10",
       iconColor: "text-chart-1",
       sub: `${stats.totalClients} active client${stats.totalClients !== 1 ? "s" : ""}`,
+      tip: "Unpaid invoice balances across all clients.",
     },
     {
       label: "Total Payables",
@@ -420,30 +531,44 @@ export default function DashboardPage() {
       iconBg: "bg-chart-4/10",
       iconColor: "text-chart-4",
       sub: "Bills outstanding",
+      tip: "Unpaid bill balances across all vendors.",
     },
     {
-      label: "Net Position",
-      rawValue: net,
-      icon: ArrowLeftRight,
-      iconBg: net >= 0 ? "bg-chart-2/10" : "bg-muted",
-      iconColor: net >= 0 ? "text-chart-2" : "text-muted-foreground",
-      sub: net >= 0 ? "Surplus — you're ahead" : "Deficit — payables exceed receivables",
+      label: "GST This Month",
+      rawValue: Math.abs(stats.gstPayable),
+      icon: Landmark,
+      iconBg: stats.gstPayable >= 0 ? "bg-status-pending/15" : "bg-status-paid/15",
+      iconColor:
+        stats.gstPayable >= 0
+          ? "text-status-pending-foreground"
+          : "text-status-paid-foreground",
+      sub:
+        stats.gstPayable >= 0
+          ? "Payable to government"
+          : "Credit — carry forward",
+      tip: "Output GST minus input credit, this month.",
     },
     {
       label: "Overdue Receivables",
       rawValue: stats.overdueAmount,
       icon: AlertCircle,
       iconBg: stats.overdueAmount > 0 ? "bg-status-overdue" : "bg-muted",
-      iconColor: stats.overdueAmount > 0 ? "text-status-overdue-foreground" : "text-muted-foreground",
+      iconColor:
+        stats.overdueAmount > 0
+          ? "text-status-overdue-foreground"
+          : "text-muted-foreground",
       sub: `${overdueInvoices.length} invoice${overdueInvoices.length !== 1 ? "s" : ""} past due`,
+      tip: "Invoices past due and still unpaid — chase these.",
     },
     {
       label: "Overdue Payables",
       rawValue: stats.overduePayables,
       icon: Clock,
       iconBg: stats.overduePayables > 0 ? "bg-chart-4/10" : "bg-muted",
-      iconColor: stats.overduePayables > 0 ? "text-chart-4" : "text-muted-foreground",
+      iconColor:
+        stats.overduePayables > 0 ? "text-chart-4" : "text-muted-foreground",
       sub: `${overdueB.length} bill${overdueB.length !== 1 ? "s" : ""} past due`,
+      tip: "Bills past due that you haven't paid yet — pay these.",
     },
     {
       label: "Collected This Month",
@@ -452,13 +577,13 @@ export default function DashboardPage() {
       iconBg: "bg-chart-2/10",
       iconColor: "text-chart-2",
       sub: new Date().toLocaleString("en-IN", { month: "long" }),
+      tip: "Cash actually received this month — not just invoiced.",
     },
   ];
 
   return (
     <div className="space-y-6">
-
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div
         className={`transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
       >
@@ -468,7 +593,7 @@ export default function DashboardPage() {
         <p className="mt-0.5 text-sm text-muted-foreground">{today}</p>
       </div>
 
-      {/* ── Setup banner ────────────────────────────────────────────────── */}
+      {/* Setup banner */}
       {setupIncomplete && (
         <div
           className={`flex items-start gap-4 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 transition-all duration-500 ${
@@ -480,7 +605,9 @@ export default function DashboardPage() {
             <Info className="w-4 h-4 text-primary" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">Complete your setup</p>
+            <p className="text-sm font-semibold text-foreground">
+              Complete your setup
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Add your GSTIN and state to start generating valid GST invoices
             </p>
@@ -494,7 +621,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Stat cards ──────────────────────────────────────────────────── */}
+      {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {statCards.map((card, idx) => (
           <StatCard
@@ -506,7 +633,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Charts ──────────────────────────────────────────────────────── */}
+      {/* Charts */}
       {charts && (
         <div
           className={`grid grid-cols-1 gap-6 lg:grid-cols-3 transition-all duration-500 ${
@@ -520,7 +647,17 @@ export default function DashboardPage() {
             <div className="border-b border-border px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">Revenue Trend</h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Revenue Trend
+                    </h2>
+                    <Tooltip
+                      content="Invoiced = billed. Collected = cash received. Spent = expenses & bills paid."
+                      side="bottom"
+                    >
+                      <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </Tooltip>
+                  </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Invoiced · Collected · Spent — last 6 months
                   </p>
@@ -528,15 +665,29 @@ export default function DashboardPage() {
                 {chartSummary && (
                   <div className="flex items-center gap-5">
                     {[
-                      { label: "Invoiced",  value: chartSummary.invoiced,  color: "text-chart-2" },
-                      { label: "Collected", value: chartSummary.collected, color: "text-chart-1" },
-                      { label: "Spent",     value: chartSummary.spent,     color: "text-chart-3" },
+                      {
+                        label: "Invoiced",
+                        value: chartSummary.invoiced,
+                        color: "text-chart-2",
+                      },
+                      {
+                        label: "Collected",
+                        value: chartSummary.collected,
+                        color: "text-chart-1",
+                      },
+                      {
+                        label: "Spent",
+                        value: chartSummary.spent,
+                        color: "text-chart-3",
+                      },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="text-right">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           {label}
                         </p>
-                        <p className={`text-sm font-bold tabular-nums ${color}`}>
+                        <p
+                          className={`text-sm font-bold tabular-nums ${color}`}
+                        >
                           {fmtCompact(value)}
                         </p>
                       </div>
@@ -548,12 +699,15 @@ export default function DashboardPage() {
             {/* Legend row */}
             <div className="flex items-center gap-5 px-5 pt-3 pb-0">
               {[
-                { label: "Invoiced",  color: "hsl(173,80%,40%)" },
+                { label: "Invoiced", color: "hsl(173,80%,40%)" },
                 { label: "Collected", color: "hsl(221,83%,53%)" },
-                { label: "Spent",     color: "hsl(258,90%,66%)" },
+                { label: "Spent", color: "hsl(258,90%,66%)" },
               ].map(({ label, color }) => (
                 <div key={label} className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ background: color }}
+                  />
                   <span className="text-xs text-muted-foreground">{label}</span>
                 </div>
               ))}
@@ -566,8 +720,12 @@ export default function DashboardPage() {
           {/* Invoice status breakdown — 1/3 width */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden min-w-0">
             <div className="border-b border-border px-5 py-4">
-              <h2 className="text-sm font-semibold text-foreground">Invoice Breakdown</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">By status — all time</p>
+              <h2 className="text-sm font-semibold text-foreground">
+                Invoice Breakdown
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                By status — all time
+              </p>
             </div>
             <div className="px-4 py-4">
               <StatusChart data={charts.statusBreakdown} />
@@ -576,7 +734,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Alert notices ───────────────────────────────────────────────── */}
+      {/* Alert notices */}
       {(overdueInvoices.length > 0 || overdueB.length > 0) && (
         <div
           className={`space-y-3 transition-all duration-500 ${
@@ -603,7 +761,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Receivables tables ──────────────────────────────────────────── */}
+      {/* Receivables tables */}
       <div
         className={`grid grid-cols-1 gap-6 lg:grid-cols-2 transition-all duration-500 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
@@ -639,7 +797,7 @@ export default function DashboardPage() {
         </SectionCard>
       </div>
 
-      {/* ── Payables tables ─────────────────────────────────────────────── */}
+      {/* Payables tables */}
       <div
         className={`grid grid-cols-1 gap-6 lg:grid-cols-2 transition-all duration-500 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
@@ -652,7 +810,10 @@ export default function DashboardPage() {
           href="/vendors"
           icon={Receipt}
         >
-          <BillTable bills={overdueB.slice(0, 5)} emptyText="No overdue bills" />
+          <BillTable
+            bills={overdueB.slice(0, 5)}
+            emptyText="No overdue bills"
+          />
         </SectionCard>
 
         <SectionCard
@@ -661,11 +822,14 @@ export default function DashboardPage() {
           href="/vendors"
           icon={Clock}
         >
-          <BillTable bills={dueSoonBills.slice(0, 5)} emptyText="No bills due this week" />
+          <BillTable
+            bills={dueSoonBills.slice(0, 5)}
+            emptyText="No bills due this week"
+          />
         </SectionCard>
       </div>
 
-      {/* ── Recent invoices ─────────────────────────────────────────────── */}
+      {/* Recent invoices */}
       <div
         className={`transition-all duration-500 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
@@ -681,7 +845,6 @@ export default function DashboardPage() {
           />
         </SectionCard>
       </div>
-
     </div>
   );
 }

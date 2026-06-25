@@ -33,6 +33,8 @@ export interface CashflowSummary {
   overduePayables: number;
   largestSingleDay: number;
   daysWithCash: number;
+  gstDue: number;
+  gstDueDate: string | null;
 }
 
 export interface CashflowData {
