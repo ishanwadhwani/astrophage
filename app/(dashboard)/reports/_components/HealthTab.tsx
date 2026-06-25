@@ -9,7 +9,9 @@ import {
   BarChart3,
   ArrowDownLeft,
   ArrowUpRight,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 const fmt = (n: number) =>
   "₹" +
@@ -56,6 +58,7 @@ export default function HealthTab({ report }: Props) {
       value: report.profitLoss.gstCollected,
       bold: false,
       accent: false,
+      tip: "Output GST charged on your taxable sales — already included in total billed, not extra profit.",
     },
     {
       label: "Total billed",
@@ -88,9 +91,14 @@ export default function HealthTab({ report }: Props) {
         >
           <div className="flex items-start justify-between mb-4">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Gross Profit
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Gross Profit
+                </p>
+                <Tooltip content="Total billed minus total expenses, on an accrual basis." side="top">
+                  <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                </Tooltip>
+              </div>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 Accrual basis
               </p>
@@ -108,6 +116,9 @@ export default function HealthTab({ report }: Props) {
                 <TrendingDown className="w-3 h-3" />
               )}
               {report.profitLoss.profitMargin}% margin
+              <Tooltip content="Gross profit as a percentage of total billed." side="top">
+                <HelpCircle className="w-3 h-3 opacity-70 hover:opacity-100 transition-opacity cursor-help" />
+              </Tooltip>
             </div>
           </div>
 
@@ -279,13 +290,18 @@ export default function HealthTab({ report }: Props) {
               }`}
             >
               <span
-                className={`text-sm ${
+                className={`flex items-center gap-1.5 text-sm ${
                   row.bold
                     ? "font-semibold text-foreground"
                     : "text-muted-foreground"
                 }`}
               >
                 {row.label}
+                {row.tip && (
+                  <Tooltip content={row.tip} side="top">
+                    <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </Tooltip>
+                )}
               </span>
               <span
                 className={`tabular-nums text-sm ${

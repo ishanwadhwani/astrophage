@@ -5,7 +5,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   TrendingUp, TrendingDown, Minus, RefreshCw,
-  ChartLine, FilePlus, Receipt,
+  ChartLine, FilePlus, Receipt, Landmark, HelpCircle,
+  ChevronDown, Activity,
 } from "lucide-react";
 
 import { CashflowData } from "@/types/cashflow";
@@ -14,6 +15,7 @@ import { getUser } from "@/lib/auth";
 import CashflowStats from "./_components/CashflowStats";
 import CashflowTimeline from "./_components/CashflowTimeline";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 // Dynamic chart import (Recharts is client-only)
 const CashflowChart = dynamic(() => import("./_components/CashflowChart"), {
@@ -66,8 +68,8 @@ function SeriesPill({
 // ── Insight chip ──────────────────────────────────────────────────────────────
 
 function InsightChip({
-  icon: Icon, label, value, positive,
-}: { icon: React.ElementType; label: string; value: string; positive?: boolean }) {
+  icon: Icon, label, value, positive, tip,
+}: { icon: React.ElementType; label: string; value: string; positive?: boolean; tip?: string }) {
   return (
     <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 shrink-0">
       <Icon className={`w-3.5 h-3.5 shrink-0 ${
@@ -79,6 +81,11 @@ function InsightChip({
         positive === undefined ? "text-foreground"
         : positive ? "text-chart-2" : "text-chart-3"
       }`}>{value}</span>
+      {tip && (
+        <Tooltip content={tip} side="top">
+          <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+        </Tooltip>
+      )}
     </div>
   );
 }
@@ -93,6 +100,7 @@ export default function CashflowPage() {
   const [loading, setLoading]       = useState(true);
   const [selectedDays, setSelectedDays] = useState(30);
   const [mounted, setMounted]       = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Chart series toggles
   const [showInflow,    setShowInflow]    = useState(true);
@@ -129,25 +137,8 @@ export default function CashflowPage() {
       label: net >= 0 ? "Surplus" : "Deficit",
       value: fmtCompact(Math.abs(net)),
       positive: net >= 0,
+      tip: "Inflows minus outflows — what's left over this period.",
     });
-
-    if (summary.largestSingleDay > 0) {
-      chips.push({
-        icon: ChartLine,
-        label: "Peak day",
-        value: fmtCompact(summary.largestSingleDay),
-        positive: undefined,
-      });
-    }
-
-    if (summary.daysWithCash > 0) {
-      chips.push({
-        icon: Minus,
-        label: "Active days",
-        value: String(summary.daysWithCash),
-        positive: undefined,
-      });
-    }
 
     const hasRecurring = timeline.some((d) => d.projectedIn > 0 || d.projectedOut > 0);
     if (hasRecurring) {
@@ -171,6 +162,9 @@ export default function CashflowPage() {
   );
   const isEmpty = summary.totalExpectedIn === 0 && summary.totalExpectedOut === 0;
   const net     = summary.totalExpectedIn - summary.totalExpectedOut;
+  const coverage = summary.totalExpectedOut > 0
+    ? Math.round((summary.totalExpectedIn / summary.totalExpectedOut) * 100)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -217,6 +211,53 @@ export default function CashflowPage() {
           {insights.map((chip) => (
             <InsightChip key={chip.label} {...chip} />
           ))}
+
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+              summary.gstDue > 0
+                ? "bg-status-pending/10 border-status-pending/30"
+                : summary.gstDue < 0
+                  ? "bg-status-paid/10 border-status-paid/30"
+                  : "bg-card border-border"
+            }`}
+          >
+            <Landmark
+              className={`w-3.5 h-3.5 shrink-0 ${
+                summary.gstDue > 0
+                  ? "text-status-pending-foreground"
+                  : summary.gstDue < 0
+                    ? "text-status-paid-foreground"
+                    : "text-muted-foreground"
+              }`}
+            />
+            <div className="leading-tight">
+              <span
+                className={`text-sm font-semibold ${
+                  summary.gstDue > 0
+                    ? "text-status-pending-foreground"
+                    : summary.gstDue < 0
+                      ? "text-status-paid-foreground"
+                      : "text-muted-foreground"
+                }`}
+              >
+                {summary.gstDue > 0
+                  ? `GST ₹${summary.gstDue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+                  : summary.gstDue < 0
+                    ? `GST credit ₹${Math.abs(summary.gstDue).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+                    : "GST ₹0"}
+              </span>
+              <span className="text-xs text-muted-foreground ml-1.5">
+                {summary.gstDue > 0 && summary.gstDueDate
+                  ? `due ${new Date(summary.gstDueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
+                  : summary.gstDue < 0
+                    ? "carry forward"
+                    : "nothing due this period"}
+              </span>
+            </div>
+            <Tooltip content="A projection based on GST invoices and bills recorded so far this month — not a final filing figure." side="top">
+              <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+            </Tooltip>
+          </div>
         </div>
       )}
 
@@ -335,6 +376,65 @@ export default function CashflowPage() {
           </div>
         )}
       </div>
+
+      {/* ── More details (secondary metrics) ───────────────────────────────── */}
+      {!isEmpty && (
+        <div
+          className={`bg-card border border-border rounded-2xl overflow-hidden transition-all duration-500 ${
+            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+          }`}
+          style={{ transitionDelay: "400ms" }}
+        >
+          <button
+            onClick={() => setShowDetails((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-3.5 text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+          >
+            More details
+            <ChevronDown
+              className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                showDetails ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {showDetails && (
+            <div className="px-6 pb-5 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <ChartLine className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Peak day</p>
+                  <p className="text-sm font-bold text-foreground tabular-nums">
+                    {summary.largestSingleDay > 0 ? fmtCompact(summary.largestSingleDay) : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Minus className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Active days</p>
+                  <p className="text-sm font-bold text-foreground tabular-nums">
+                    {summary.daysWithCash > 0 ? summary.daysWithCash : "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Activity className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Coverage</p>
+                  <p className="text-sm font-bold text-foreground tabular-nums">
+                    {coverage !== null ? `${coverage}%` : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Timeline ────────────────────────────────────────────────────────── */}
       <CashflowTimeline activeDays={activeDays} />

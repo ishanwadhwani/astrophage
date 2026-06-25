@@ -167,6 +167,7 @@ export default function GSTTab({ report, onMarkFiled }: Props) {
       icon: Calculator,
       iconBg: "bg-muted",
       iconColor: "text-muted-foreground",
+      tip: "IGST + CGST + SGST combined — the GST charged to customers on these invoices.",
     },
     {
       label: "Grand Total",

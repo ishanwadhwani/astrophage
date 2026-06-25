@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, HelpCircle } from "lucide-react";
 import { GstSummary } from "@/lib/reports";
 import { exportToCSV } from "@/lib/csv";
 import PermissionGate from "@/components/ui/PermissionGate";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
   report: GstSummary;
@@ -128,11 +129,19 @@ export default function GSTSummaryTab({ report }: Props) {
             : "bg-status-paid/10 border-status-paid/30"
         }`}
       >
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-          {isPayable
-            ? "GST Payable to Government"
-            : "GST Credit (refundable / carry forward)"}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            {isPayable
+              ? "GST Payable to Government"
+              : "GST Credit (refundable / carry forward)"}
+          </p>
+          <Tooltip
+            content="Output GST is tax you charged customers. Input GST is tax you paid vendors, which you can reclaim. Net = Output − Input: positive means you owe it, negative means you can claim it back."
+            side="top"
+          >
+            <HelpCircle className="w-3 h-3 mb-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+          </Tooltip>
+        </div>
         <p className="text-3xl font-bold text-foreground">
           ₹
           {Math.abs(report.netPayable).toLocaleString("en-IN", {

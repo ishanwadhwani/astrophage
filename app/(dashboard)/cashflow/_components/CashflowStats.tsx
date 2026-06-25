@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import {
   TrendingUp, TrendingDown, ArrowLeftRight,
-  AlertCircle, Clock, Activity,
+  AlertCircle, Clock, HelpCircle,
 } from "lucide-react";
 import { CashflowSummary } from "@/types/cashflow";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 const fmtCompact = (n: number) =>
   n >= 10_000_000 ? `₹${(n / 10_000_000).toFixed(1)}Cr`
@@ -26,9 +27,6 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
   useEffect(() => { const id = setTimeout(() => setMounted(true), 40); return () => clearTimeout(id); }, []);
 
   const net = summary.totalExpectedIn - summary.totalExpectedOut;
-  const coverage = summary.totalExpectedOut > 0
-    ? Math.round((summary.totalExpectedIn / summary.totalExpectedOut) * 100)
-    : null;
 
   const cards = [
     {
@@ -38,6 +36,7 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
       icon: TrendingUp,
       iconBg: "bg-chart-1/10",
       iconColor: "text-chart-1",
+      tip: "Total amount expected to come in over this period.",
     },
     {
       label: "Expected Outflows",
@@ -46,14 +45,16 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
       icon: TrendingDown,
       iconBg: "bg-chart-3/10",
       iconColor: "text-chart-3",
+      tip: "Bills and recurring payments due to go out over this period.",
     },
     {
-      label: "Net Cashflow",
+      label: "Money In vs Out",
       value: (net >= 0 ? "+" : "−") + fmtCompact(Math.abs(net)),
       sub: net >= 0 ? "Surplus — inflows lead" : "Deficit — outflows lead",
       icon: ArrowLeftRight,
       iconBg: net >= 0 ? "bg-chart-2/10" : "bg-muted",
       iconColor: net >= 0 ? "text-chart-2" : "text-muted-foreground",
+      tip: "Expected inflows minus expected outflows for this period.",
     },
     {
       label: "Overdue Receivables",
@@ -62,6 +63,7 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
       icon: AlertCircle,
       iconBg: summary.overdueAmount > 0 ? "bg-status-overdue" : "bg-muted",
       iconColor: summary.overdueAmount > 0 ? "text-status-overdue-foreground" : "text-muted-foreground",
+      tip: "Invoices past due that clients haven't paid yet.",
     },
     {
       label: "Overdue Payables",
@@ -70,21 +72,12 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
       icon: Clock,
       iconBg: summary.overduePayables > 0 ? "bg-chart-4/10" : "bg-muted",
       iconColor: summary.overduePayables > 0 ? "text-chart-4" : "text-muted-foreground",
-    },
-    {
-      label: coverage !== null ? `Coverage ${coverage}%` : "Coverage",
-      value: coverage !== null ? `${coverage}%` : "—",
-      sub: coverage === null ? "No outflows in period"
-        : coverage >= 100 ? "Inflows cover outflows"
-        : "Shortfall — top up needed",
-      icon: Activity,
-      iconBg: coverage === null || coverage >= 100 ? "bg-chart-2/10" : "bg-chart-4/10",
-      iconColor: coverage === null || coverage >= 100 ? "text-chart-2" : "text-chart-4",
+      tip: "Bills past due that you haven't paid yet.",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((c, i) => (
         <div
           key={c.label}
@@ -94,9 +87,14 @@ export default function CashflowStats({ summary, selectedDays }: Props) {
           style={{ transitionDelay: mounted ? `${i * 55}ms` : "0ms" }}
         >
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground leading-tight">
-              {c.label}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground leading-tight">
+                {c.label}
+              </p>
+              <Tooltip content={c.tip} side="top">
+                <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+              </Tooltip>
+            </div>
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${c.iconBg}`}>
               <c.icon className={`w-3.5 h-3.5 ${c.iconColor}`} />
             </div>
