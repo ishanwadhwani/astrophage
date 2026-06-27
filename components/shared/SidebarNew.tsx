@@ -19,6 +19,7 @@ import {
   UsersRound,
   Receipt,
   ChevronDown,
+  LifeBuoy,
 } from "lucide-react";
 
 import { logout } from "@/lib/auth";
@@ -44,6 +45,7 @@ const bottomNavItems = [
   { label: "Cashflow", href: "/cashflow", icon: ChartNoAxesCombined },
   { label: "Reports", href: "/reports", icon: NotebookText },
   { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Help", href: "/help", icon: LifeBuoy },
 ];
 
 const expenseChildren = [
