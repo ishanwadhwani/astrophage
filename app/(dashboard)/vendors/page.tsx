@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Download, Building2, FilePlus, RefreshCw, ArrowUpDown } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Download, Building2, FilePlus, RefreshCw, ArrowUpDown, ScanLine } from "lucide-react";
 
 import { Vendor, Bill, RecurringBill } from "@/types/vendor";
 import {
@@ -13,6 +13,7 @@ import {
   toggleRecurringBill,
   deleteRecurringBill,
 } from "@/lib/vendors";
+import { extractBillFromFile, ExtractedBill } from "@/lib/extraction";
 import { getUser } from "@/lib/auth";
 import VendorStats from "./_components/VendorStats";
 import VendorTable from "./_components/VendorTable";
@@ -39,7 +40,7 @@ export default function VendorsPage() {
   const user = getUser();
   const businessId = user?.business?.id;
 
-  const { confirm } = useToast();
+  const { confirm, success, error } = useToast();
   const [tab,               setTab]               = useState<TabType>("Vendors");
   const [vendors,           setVendors]           = useState<Vendor[]>([]);
   const [bills,             setBills]             = useState<Bill[]>([]);
@@ -54,6 +55,10 @@ export default function VendorsPage() {
   const [vendorModalOpen,   setVendorModalOpen]   = useState(false);
   const [billModalOpen,     setBillModalOpen]     = useState(false);
   const [paymentBill,       setPaymentBill]       = useState<Bill | null>(null);
+
+  const [extracting, setExtracting] = useState(false);
+  const [prefill, setPrefill] = useState<ExtractedBill | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!businessId) return;
@@ -197,6 +202,23 @@ export default function VendorsPage() {
     } catch {}
   };
 
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const extracted = await extractBillFromFile(file);
+      setPrefill(extracted);
+      setBillModalOpen(true);
+      success("Bill read — please review the details before saving");
+    } catch {
+      error("Couldn't read that bill. Try a clearer photo, or enter it manually.");
+    } finally {
+      setExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleBillPaid = (billId: string, newStatus: string, amountPaid: number) => {
     setBills((prev) =>
       prev.map((b) =>
@@ -265,6 +287,34 @@ export default function VendorsPage() {
               <Download className="h-4 w-4" />Export
             </button>
           </PermissionGate>
+          {tab === "Bills" && (
+            <PermissionGate permission="bill:create">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileSelected}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={extracting}
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border shadow-sm text-sm font-semibold rounded-lg text-foreground hover:bg-muted disabled:opacity-50 transition-all"
+              >
+                {extracting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    Reading bill…
+                  </>
+                ) : (
+                  <>
+                    <ScanLine className="h-4 w-4" />
+                    Upload Bill
+                  </>
+                )}
+              </button>
+            </PermissionGate>
+          )}
           <PermissionGate permission={tab === "Vendors" ? "vendor:create" : "bill:create"}>
             <button
               onClick={() => {
@@ -365,8 +415,8 @@ export default function VendorsPage() {
         onCreated={(vendor) => setVendors((prev) => [vendor, ...prev])}
       />
       <AddBillModal
-        isOpen={billModalOpen} businessId={businessId!} vendors={vendors}
-        onClose={() => setBillModalOpen(false)}
+        isOpen={billModalOpen} businessId={businessId!} vendors={vendors} prefill={prefill}
+        onClose={() => { setBillModalOpen(false); setPrefill(null); }}
         onCreated={(bill) => setBills((prev) => [bill, ...prev])}
       />
       <AddRecurringBillModal
