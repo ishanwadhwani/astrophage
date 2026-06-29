@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { Sparkles } from "lucide-react";
 import { Bill, CreateBillPayload, Vendor } from "@/types/vendor";
+import { ExtractedBill } from "@/lib/extraction";
 import { createBill } from "@/lib/vendors";
 import Modal from "@/components/shared/Modal";
 
@@ -26,14 +29,23 @@ interface Props {
   isOpen: boolean;
   businessId: string;
   vendors: Vendor[];
+  prefill?: ExtractedBill | null;
   onClose: () => void;
   onCreated: (bill: Bill) => void;
 }
+
+const nearestGstRate = (rate: number | null) => {
+  if (rate === null) return 18;
+  return GST_RATES.reduce((closest, r) =>
+    Math.abs(r - rate) < Math.abs(closest - rate) ? r : closest,
+  );
+};
 
 export default function AddBillModal({
   isOpen,
   businessId,
   vendors,
+  prefill,
   onClose,
   onCreated,
 }: Props) {
@@ -55,6 +67,30 @@ export default function AddBillModal({
       notes: "",
     },
   });
+
+  // Prefill from an extracted bill (uploaded photo/PDF) when the modal opens
+  const matchedVendor = prefill?.vendorName
+    ? vendors.find(
+        (v) => v.name.toLowerCase() === prefill.vendorName!.toLowerCase(),
+      )
+    : undefined;
+
+  useEffect(() => {
+    if (!isOpen || !prefill) return;
+    reset({
+      vendorId: matchedVendor?.id ?? "",
+      billNumber: prefill.billNumber ?? "",
+      description: prefill.description ?? "",
+      taxableAmount: prefill.taxableAmount ?? 0,
+      gstRate: nearestGstRate(prefill.gstRate),
+      dueDate: prefill.dueDate ? prefill.dueDate.slice(0, 10) : "",
+      notes:
+        prefill.isForeign && prefill.currency
+          ? `Bill currency: ${prefill.currency} — confirm reverse charge with your CA.`
+          : "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, prefill]);
 
   const taxableAmount = watch("taxableAmount");
   const gstRate = watch("gstRate");
@@ -94,6 +130,16 @@ export default function AddBillModal({
       title="Add Bill"
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
+        {prefill && (
+          <div className="flex items-start gap-2.5 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2.5">
+            <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              Auto-filled from your uploaded bill — please review the details
+              before saving.
+            </p>
+          </div>
+        )}
+
         <div>
           <label className={labelBase}>
             Vendor <span className="text-destructive">*</span>
@@ -117,6 +163,12 @@ export default function AddBillModal({
               </select>
             )}
           />
+          {prefill?.vendorName && !matchedVendor && (
+            <p className="text-xs text-status-pending-foreground mt-1.5">
+              Detected &ldquo;{prefill.vendorName}&rdquo; — not in your vendor
+              list yet, select the closest match or add it first.
+            </p>
+          )}
           {errors.vendorId && (
             <p className="text-xs text-destructive mt-1.5">
               {errors.vendorId.message}
