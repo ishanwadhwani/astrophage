@@ -2,18 +2,21 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { PanelLeftOpen, Cable } from "lucide-react";
+import { Menu, PanelLeft, PanelLeftClose, Cable } from "lucide-react";
 
 import { getUser, setActiveBusiness } from "@/lib/auth";
 import SidebarNew from "./SidebarNew";
 import NotificationBell from "./NotificationBell";
+
+const LS_KEY = "lg-sidebar-open";
 
 export default function DashboardShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [lgSidebarOpen, setLgSidebarOpen] = useState(true);
 
   useEffect(() => {
     const user = getUser();
@@ -31,12 +34,26 @@ export default function DashboardShell({
         window.location.assign("/select-business");
       }
     }
+    // Restore sidebar preference
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored === "false") setLgSidebarOpen(false);
   }, []);
+
+  const toggleLgSidebar = () => {
+    setLgSidebarOpen((v) => {
+      localStorage.setItem(LS_KEY, String(!v));
+      return !v;
+    });
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar — always visible */}
-      <div className="hidden shrink-0 lg:flex lg:w-56">
+      {/* Desktop sidebar — collapsible via width transition, no backdrop */}
+      <div
+        className={`hidden shrink-0 lg:flex overflow-hidden transition-[width] duration-300 ease-in-out ${
+          lgSidebarOpen ? "w-56" : "w-0"
+        }`}
+      >
         <SidebarNew />
       </div>
 
@@ -44,32 +61,33 @@ export default function DashboardShell({
       <div
         aria-hidden="true"
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] lg:hidden transition-all duration-300 ${
-          sidebarOpen
+          mobileSidebarOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         }`}
-        onClick={() => setSidebarOpen(false)}
+        onClick={() => setMobileSidebarOpen(false)}
       />
 
       {/* Mobile: drawer — always in DOM, slides in/out */}
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 shadow-2xl shadow-black/20 lg:hidden
           transition-transform duration-300 ease-drawer
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <SidebarNew onClose={() => setSidebarOpen(false)} />
+        <SidebarNew onClose={() => setMobileSidebarOpen(false)} />
       </div>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+
         {/* Mobile top bar */}
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setMobileSidebarOpen(true)}
             className="group -ml-2 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
             aria-label="Open sidebar"
           >
-            <PanelLeftOpen className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
+            <Menu className="w-[18px] h-[18px] transition-transform duration-200 group-hover:scale-110" />
           </button>
 
           <div className="flex items-center gap-2">
@@ -83,11 +101,25 @@ export default function DashboardShell({
             </Link>
           </div>
 
-          {/* Bell in header on mobile — panel opens downward */}
           <div className="ml-auto">
             <NotificationBell placement="header" />
           </div>
         </header>
+
+        {/* Desktop top bar — collapse/expand toggle, no mobile equivalent */}
+        <div className="hidden lg:flex h-14 shrink-0 items-center border-b border-border bg-card px-4">
+          <button
+            onClick={toggleLgSidebar}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            aria-label={lgSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {lgSidebarOpen ? (
+              <PanelLeftClose className="w-[18px] h-[18px]" />
+            ) : (
+              <PanelLeft className="w-[18px] h-[18px]" />
+            )}
+          </button>
+        </div>
 
         <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
           {children}
